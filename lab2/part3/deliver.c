@@ -109,6 +109,7 @@ void syserror(char* name){
 }
 
 void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, socklen_t addrlen){
+    struct packet* ACK;
     //open the file, read only
     FILE* fd = fopen(filePath, "r");
     if (fd == NULL){
@@ -135,7 +136,7 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
     for (int i = 0; i < number_frag; ++i){
         //struct packet* myPacket = (struct packet*)malloc(sizeof(struct packet));
         memset(fragments[i].filedata, 0, sizeof(fragments[i].filedata));
-
+    
         //read data from file
         if (fread(fragments[i].filedata, sizeof(char), 1000, fd) != 1000 && i != number_frag - 1)
             syserror("file read");
@@ -159,42 +160,53 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
     timer.tv_usec = 500;
     if (setsockopt(mySocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timer, sizeof(timer)) < 0)
         syserror("set timer");
-        
+
     for (int i = 0; i < number_frag; ++i){
         //send the fragment
-        char* message = p_to_s(&fragments[i]);
-        if (sendto(mySocket, message, fragments[i].size, 0, dest_addr, sizeof(struct sockaddr_storage)) <= 0)
+        int size = 0;
+        char* message = p_to_s(&fragments[i], &size);
+        if (sendto(mySocket, message, size, 0, dest_addr, sizeof(struct sockaddr_storage)) <= 0)
             syserror("sendto");
 
-        //waiting for ACK
+        //wait for ACK
         char buf[1024] = {0};
         struct sockaddr_in from;
         int fromLen = sizeof(struct sockaddr_storage);
 
         if (recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen) <= 0){
-            //may time out, retry
-            printf("Fragment #%d time out! Retransmitting...\n");
+            //if failed, may time out, retry
+            printf("Fragment #%d time out! Retransmitting...\n", i + 1);
             i--;
             retransmit++;
             if (retransmit > 3){
                 printf("Restransmit too many times.\n"
-                "There may be a connection issue, please check and rerun the program...\n");
-                exit(0);
+                "There may be a connection/server issue, please check and rerun the program...\n");
+                free(message);
+                free(fragments);
+                fclose(fd);
+                return;
             }
+            free(message);
             continue;
         }
 
         //check the reply ACK message
         struct packet* ACK = s_to_p(buf);
         if (strcmp(ACK->filedata, "ACK") != 0){
-            printf("Acknoledge message did not match! Retransmitting...\n");
+            printf("Acknoledge for fragment #%d message did not match! Retransmitting...\n", i + 1);
             i--;
             retransmit++;
             if (retransmit > 3){
                 printf("Restransmit too many times.\n" 
-                "There may be a connection issue, please check and rerun the program...\n");
-                exit(0);
+                "There may be a connection/server issue, please check and rerun the program...\n");
+                free(message);
+                free(ACK);
+                free(fragments);
+                fclose(fd);
+                return;
             }
+            free(message);
+            free(ACK);
             continue;
         }
         printf("Received ACK of fragment #%d\n", i + 1);
@@ -202,4 +214,6 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
         free(message);
         free(ACK);
     }
+    fclose(fd);
+    free(fragments);
 }
