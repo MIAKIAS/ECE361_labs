@@ -80,18 +80,62 @@ int main(int argc, char** argv){
         syserror("recvfrom");
     } 
 
-    //send back message based on the received message
-    printf("Message received: \"%s\"\n", buf);
-    if (strcmp("ftp", buf) == 0){
-        if (sendto(mySocket, "yes", strlen("yes") + 1, 0, (struct sockaddr*)&from, fromLen) == -1)
-            syserror("sendto_yes");
-        printf("Message replied: \"yes\"\n");
-    } else{
-        if (sendto(mySocket, "no", strlen("no") + 1, 0, (struct sockaddr*)&from, fromLen) == -1)
-            syserror("sendto_no");
-        printf("Message replied: \"no\"\n");
+    struct packet *fragment = s_to_p(buf);
+
+    FILE *f;
+    
+    int total_fragments;
+    
+    if(fragment->frag_no == 1){
+        if (sendto(mySocket, "ACK", strlen("ACK"), 0, (struct sockaddr*)&from, fromLen) <= 0)
+            syserror("sendto_ACK");
+        
+        // char *path = malloc(sizeof(char) * strlen(fragment->filename) + 11);
+        // strcpy(path, "new_files/");
+        // strcat(path, fragment->filename);
+        
+        f = fopen("test2.txt", "w");
+        printf("A new file is created.\n");
+
+        total_fragments = fragment->total_frag;
+        printf("total_fragments: %d\n", total_fragments);
+        if(total_fragments == 1){
+            fwrite(fragment->filedata, sizeof(char), fragment->size, f);
+            printf("Done\n");
+        }
     }
 
+    clear_packet(fragment);
+
+    int i;
+
+    for(i = 2; i <= total_fragments; ++i){
+        if(recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen) <= 0){
+            syserror("recvfrom");
+
+            if (sendto(mySocket, "NACK", strlen("NACK"), 0, (struct sockaddr*)&from, fromLen) <= 0)
+                syserror("sendto_NACK");
+
+            break;
+        }
+        
+        fragment = s_to_p(buf);
+        fwrite(fragment->filedata, sizeof(char), fragment->size, f);
+        clear_packet(fragment);
+
+        if (sendto(mySocket, "ACK", strlen("ACK"), 0, (struct sockaddr*)&from, fromLen) <= 0){
+            syserror("sendto_ACK");
+            break;
+        }
+
+        printf("Received from deliver, writing to file...\n");    
+    }
+
+    fclose(f);
+
+    if(i == total_fragments)
+        printf("Done\n");
+    
     close(mySocket);
     freeaddrinfo(res);
     return 0;

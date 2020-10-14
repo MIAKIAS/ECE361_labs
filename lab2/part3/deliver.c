@@ -16,7 +16,7 @@
 #include<stdbool.h>
 #include<dirent.h>
 #include<time.h>
-#include"packet.h"
+#include "packet.h"
 
 //check whether the input is correct
 void usage();
@@ -189,30 +189,31 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
             free(message);
             continue;
         }
-
+  
         //check the reply ACK message
-        struct packet* ACK = s_to_p(buf);
-        if (strcmp(ACK->filedata, "ACK") != 0){
-            printf("Acknoledge for fragment #%d message did not match! Retransmitting...\n", i + 1);
+        //struct packet* ACK = s_to_p(buf);
+
+        if (strcmp(buf, "ACK") != 0){
+            printf("Acknowledge for fragment #%d message did not match! Retransmitting...\n", i + 1);
             i--;
             retransmit++;
             if (retransmit > 3){
                 printf("Restransmit too many times.\n" 
                 "There may be a connection/server issue, please check and rerun the program...\n");
                 free(message);
-                free(ACK);
+                //free(ACK);
                 free(fragments);
                 fclose(fd);
                 return;
             }
             free(message);
-            free(ACK);
+            //free(ACK);
             continue;
         }
         printf("Received ACK of fragment #%d\n", i + 1);
         retransmit = 0;
         free(message);
-        free(ACK);
+        //free(ACK);
     }
     fclose(fd);
     free(fragments);
