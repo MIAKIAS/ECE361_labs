@@ -52,6 +52,15 @@ struct packet* s_to_p(char* buffer){
     char temp_name[1024];
     char *temp_ptr;
 
+    /*test purpuse*/
+    // char* test = "hahaha\nhahaha";
+    // char temp1[1000] = {0};
+    // char temp2[1000] = {0};
+    // sscanf(test, "%s:%s", temp1, temp2);
+    // printf("temp1: %s\n", temp1);
+    // printf("temp2: %s\n", temp2);
+
+
     sscanf(buffer, "%u:%u:%u:%s:", &fragment->total_frag, &fragment->frag_no, &fragment->size, temp_name);
  
     temp_ptr = strchr(temp_name, ':');

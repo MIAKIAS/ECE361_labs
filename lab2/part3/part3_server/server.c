@@ -12,7 +12,7 @@
 #include<unistd.h>
 #include<netdb.h>
 #include<errno.h>
-#include"packet.h"
+#include"../packet.h"
 
 void usage(){
 	fprintf(stderr, "Incorrect inputs\n");
@@ -51,8 +51,8 @@ int main(int argc, char** argv){
     //traverse the list to find a valid one
     for (p = res; p != NULL; p = p->ai_next){
         //create the socket
-        mySocket = socket(p->ai_family, p->ai_socktype, p->ai_protcol);
-        if (mySocket == -1){o
+        mySocket = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (mySocket == -1){
             continue;
         } 
 
@@ -100,7 +100,7 @@ int main(int argc, char** argv){
         total_fragments = fragment->total_frag;
         printf("total_fragments: %d\n", total_fragments);
         if(total_fragments == 1){
-            fwrite(fragment->filedata, sizeof(char), fragment->size, f);
+            fwrite(fragment->filedata, sizeof(char), fragment->size - 1, f);
             printf("Done\n");
         }
     }

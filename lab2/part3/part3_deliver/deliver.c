@@ -16,7 +16,7 @@
 #include<stdbool.h>
 #include<dirent.h>
 #include<time.h>
-#include "packet.h"
+#include "../packet.h"
 
 //check whether the input is correct
 void usage();
@@ -215,6 +215,7 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
         free(message);
         //free(ACK);
     }
+    printf("File Transmission Finished...\n");
     fclose(fd);
     free(fragments);
 }
