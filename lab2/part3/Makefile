@@ -12,4 +12,4 @@ $(EXEC): $(OBJ)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJ) $(LBLIBS)
 
 clean:
-	rm -rf deliver server
+	rm -rf *.o
