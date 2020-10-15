@@ -51,8 +51,8 @@ int main(int argc, char** argv){
     //traverse the list to find a valid one
     for (p = res; p != NULL; p = p->ai_next){
         //create the socket
-        mySocket = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (mySocket == -1){
+        mySocket = socket(p->ai_family, p->ai_socktype, p->ai_protcol);
+        if (mySocket == -1){o
             continue;
         } 
 
