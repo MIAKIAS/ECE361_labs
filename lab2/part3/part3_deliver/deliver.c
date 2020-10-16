@@ -132,6 +132,13 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
     char receive_buffer[1000] = {0};
     struct packet* fragments = (struct packet*)malloc(sizeof(struct packet) * number_frag); //store fragments
     
+    //find the last '/' in the path if exist
+    int i = strlen(filePath);
+    while (i >= 0 && filePath[i] != '/'){
+        i--;
+    }
+    char* fileName = filePath + i + 1; //now fileName points to only the name
+
     //create fragments
     for (int i = 0; i < number_frag; ++i){
         //struct packet* myPacket = (struct packet*)malloc(sizeof(struct packet));
@@ -144,7 +151,7 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
         //update packet info
         fragments[i].total_frag = number_frag;
         fragments[i].frag_no = i + 1;
-        fragments[i].filename = filePath;
+        fragments[i].filename = fileName;
         if (i == number_frag - 1){
             fragments[i].size = numberChar % 1000;
         } else{
