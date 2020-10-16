@@ -77,6 +77,8 @@ int main(int argc, char** argv){
     //keep accepting message from client
     int bytesReceived = recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen);
     if (bytesReceived < 0){
+        if (sendto(mySocket, "NACK", strlen("NACK"), 0, (struct sockaddr*)&from, fromLen) <= 0)
+                syserror("sendto_NACK");
         syserror("recvfrom");
     } 
 
@@ -110,7 +112,7 @@ int main(int argc, char** argv){
 
     clear_packet(fragment);
 
-    int i;
+    int i = 0;
 
     for(i = 2; i <= total_fragments; ++i){
         if(recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen) <= 0){
