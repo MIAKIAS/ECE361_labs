@@ -45,36 +45,35 @@ char* p_to_s(struct packet* myPacket, int* size){
 
 //transfer string message to packet
 struct packet* s_to_p(char* buffer){
-    printf("buffer: %s\n", buffer);
+    //printf("buffer: %s\n", buffer);
     
     struct packet *fragment = malloc(sizeof(struct packet));
 
-    char temp_name[1024];
-    char *temp_ptr;
+    sscanf(buffer, "%u:%u:%u:", &fragment->total_frag, &fragment->frag_no, &fragment->size);
+     
+    int count = 0;
+    char *dataIndex = buffer;
+    char *nameIndex = buffer;
+    while(count < 4){
+        if(*dataIndex == ':')    count ++;
+        dataIndex ++;
 
-    /*test purpuse*/
-    // char* test = "hahaha\nhahaha";
-    // char temp1[1000] = {0};
-    // char temp2[1000] = {0};
-    // sscanf(test, "%s:%s", temp1, temp2);
-    // printf("temp1: %s\n", temp1);
-    // printf("temp2: %s\n", temp2);
+        if(count < 3)   nameIndex ++;
+        if(count == 4){
+            nameIndex ++;
+            break;
+        }    
+    }   
 
-
-    sscanf(buffer, "%u:%u:%u:%s:", &fragment->total_frag, &fragment->frag_no, &fragment->size, temp_name);
- 
-    temp_ptr = strchr(temp_name, ':');
-    fragment->filename = malloc(sizeof(char) * (temp_ptr - temp_name + 1));
-    strncpy(fragment->filename, temp_name, temp_ptr - temp_name);
-    fragment->filename[temp_ptr - temp_name] = '\0';
-
-    printf("fragment->filename: %s\n", fragment->filename);
-    printf("fragment->size: %u\n", fragment->size);
+    int name_length = dataIndex - nameIndex - 1;
+    fragment->filename = malloc(sizeof(char) * (name_length + 1));
+    strncpy(fragment->filename, nameIndex, name_length);
+    fragment->filename[name_length] = '\0';
     
     memset(fragment->filedata, 0, 1000);
-    memcpy(fragment->filedata, temp_ptr + 1, sizeof(char) * fragment->size);
-    printf("fragment->filedata: %s\n", fragment->filedata);
-    
+    memcpy(fragment->filedata, dataIndex, sizeof(char) * fragment->size);
+    fragment->filedata[fragment->size] = '\0';
+   
     return fragment;
 }
 

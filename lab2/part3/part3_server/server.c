@@ -85,22 +85,25 @@ int main(int argc, char** argv){
     FILE *f;
     
     int total_fragments;
-    
+    char *path;
+
     if(fragment->frag_no == 1){
         if (sendto(mySocket, "ACK", strlen("ACK"), 0, (struct sockaddr*)&from, fromLen) <= 0)
             syserror("sendto_ACK");
         
-        // char *path = malloc(sizeof(char) * strlen(fragment->filename) + 11);
-        // strcpy(path, "new_files/");
-        // strcat(path, fragment->filename);
+        path = malloc(sizeof(char) * (strlen(fragment->filename) + 1));
+        strcpy(path, fragment->filename);
         
-        f = fopen("test2.txt", "w");
+        f = fopen(path, "w");        
+        
         printf("A new file is created.\n");
 
         total_fragments = fragment->total_frag;
         printf("total_fragments: %d\n", total_fragments);
+        fwrite(fragment->filedata, sizeof(char), fragment->size, f);
+        printf("Received from deliver, writing to file...\n");
+
         if(total_fragments == 1){
-            fwrite(fragment->filedata, sizeof(char), fragment->size - 1, f);
             printf("Done\n");
         }
     }
@@ -132,10 +135,12 @@ int main(int argc, char** argv){
     }
 
     fclose(f);
+    free(path);
 
-    if(i == total_fragments)
+    if(i == total_fragments + 1){
         printf("Done\n");
-    
+    }
+        
     close(mySocket);
     freeaddrinfo(res);
     return 0;
