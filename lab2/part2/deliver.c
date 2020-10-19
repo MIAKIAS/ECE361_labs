@@ -109,8 +109,8 @@ int main(int argc, char** argv){
     clock_t end = clock();
 
     //calculate the round-trip time
-    clock_t totalTime = end - begin;
-    printf("The round-trip time is %d msec.\n", totalTime);
+    double totalTime = ((double)(end - begin)) / CLOCKS_PER_SEC;
+    printf("The round-trip time is %f msec.\n", totalTime * 1000);
 
     if (strcmp(buf, "yes") == 0){
         printf("A file transfer can start.\n");
