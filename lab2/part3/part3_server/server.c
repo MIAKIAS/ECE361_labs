@@ -1,4 +1,4 @@
-/*  ECE361 Lab1 server program
+/*  ECE361 Lab2 server program
     Produced by Weizhou Wang and Adam Wu
     Some of the code are borrowed from "Beej's Guide to Network Programming"
     Input Format: server <UDP listen port>*/

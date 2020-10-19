@@ -1,4 +1,4 @@
-/*  ECE361 Lab1 client program
+/*  ECE361 Lab2 client program
     Produced by Weizhou Wang and Adam Wu
     Some of the code are borrowed from "Beej's Guide to Network Programming"
     Input Format: deliver <server address> <server port number>*/
