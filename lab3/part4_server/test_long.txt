@@ -1,0 +1,211 @@
+/*  ECE361 Lab1 client program
+    Produced by Weizhou Wang and Adam Wu
+    Some of the code are borrowed from "Beej's Guide to Network Programming"
+    Input Format: deliver <server address> <server port number>*/
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/stat.h>
+#include<string.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#include<unistd.h>
+#include<netdb.h>
+#include<fcntl.h>
+#include<stdbool.h>
+#include<dirent.h>
+#include<time.h>
+#include "../packet.h"
+
+//check whether the input is correct
+void usage();
+//print out error message and terminate the program
+void syserror(char* name);
+//send file using packet structure
+void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, socklen_t addrlen);
+
+int main(int argc, char** argv){    
+    //first check input format
+    if (argc != 3) usage(); 
+
+    char* serverAddr = argv[1];
+    char* port = argv[2];
+    //int port = atoi(argv[2]);
+
+    // //create the address inform/*  ECE361 Lab1 client program
+    Produced by Weizhou Wang and Adam Wu
+    Some of the code are borrowed from "Beej's Guide to Network Programming"
+    Input Format: deliver <server address> <server port number>*/
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/stat.h>
+#include<string.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#include<unistd.h>
+#include<netdb.h>
+#include<fcntl.h>
+#include<stdbool.h>
+#include<dirent.h>
+#include<time.h>
+#include "../packet.h"
+
+//check whether the input is correct
+void usage();
+//print out error message and terminate the program
+void syserror(char* name);
+//send file using packet structure
+void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, socklen_t addrlen);
+
+int main(int argc, char** argv){    
+    //first check input format
+    if (argc != 3) usage(); 
+
+    char* serverAddr = argv[1];
+    char* port = argv[2];
+    //int port = atoi(argv[2]);
+
+    // //create the address inform/*  ECE361 Lab1 client program
+    Produced by Weizhou Wang and Adam Wu
+    Some of the code are borrowed from "Beej's Guide to Network Programming"
+    Input Format: deliver <server address> <server port number>*/
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/stat.h>
+#include<string.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#include<unistd.h>
+#include<netdb.h>
+#include<fcntl.h>
+#include<stdbool.h>
+#include<dirent.h>
+#include<time.h>
+#include "../packet.h"
+
+//check whether the input is correct
+void usage();
+//print out error message and terminate the program
+void syserror(char* name);
+//send file using packet structure
+void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, socklen_t addrlen);
+
+int main(int argc, char** argv){    
+    //first check input format
+    if (argc != 3) usage(); 
+
+    char* serverAddr = argv[1];
+    char* port = argv[2];
+    //int port = atoi(argv[2]);
+
+    // //create the address inform/*  ECE361 Lab1 client program
+    Produced by Weizhou Wang and Adam Wu
+    Some of the code are borrowed from "Beej's Guide to Network Programming"
+    Input Format: deliver <server address> <server port number>*/
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/stat.h>
+#include<string.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#include<unistd.h>
+#include<netdb.h>
+#include<fcntl.h>
+#include<stdbool.h>
+#include<dirent.h>
+#include<time.h>
+#include "../packet.h"
+
+//check whether the input is correct
+void usage();
+//print out error message and terminate the program
+void syserror(char* name);
+//send file using packet structure
+void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, socklen_t addrlen);
+
+int main(int argc, char** argv){    
+    //first check input format
+    if (argc != 3) usage(); 
+
+    char* serverAddr = argv[1];
+    char* port = argv[2];
+    //int port = atoi(argv[2]);
+
+    // //create the address inform/*  ECE361 Lab1 client program
+    Produced by Weizhou Wang and Adam Wu
+    Some of the code are borrowed from "Beej's Guide to Network Programming"
+    Input Format: deliver <server address> <server port number>*/
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/stat.h>
+#include<string.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#include<unistd.h>
+#include<netdb.h>
+#include<fcntl.h>
+#include<stdbool.h>
+#include<dirent.h>
+#include<time.h>
+#include "../packet.h"
+
+//check whether the input is correct
+void usage();
+//print out error message and terminate the program
+void syserror(char* name);
+//send file using packet structure
+void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, socklen_t addrlen);
+
+int main(int argc, char** argv){    
+    //first check input format
+    if (argc != 3) usage(); 
+
+    char* serverAddr = argv[1];
+    char* port = argv[2];
+    //int port = atoi(argv[2]);
+
+    // //create the address inform/*  ECE361 Lab1 client program
+    Produced by Weizhou Wang and Adam Wu
+    Some of the code are borrowed from "Beej's Guide to Network Programming"
+    Input Format: deliver <server address> <server port number>*/
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/stat.h>
+#include<string.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#include<unistd.h>
+#include<netdb.h>
+#include<fcntl.h>
+#include<stdbool.h>
+#include<dirent.h>
+#include<time.h>
+#include "../packet.h"
+
+//check whether the input is correct
+void usage();
+//print out error message and terminate the program
+void syserror(char* name);
+//send file using packet structure
+void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, socklen_t addrlen);
+
+int main(int argc, char** argv){    
+    //first check input format
+    if (argc != 3) usage(); 
+
+    char* serverAddr = argv[1];
+    char* port = argv[2];
+    //int port = atoi(argv[2]);
+
+    // //create the address inform
