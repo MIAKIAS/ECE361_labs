@@ -16,6 +16,7 @@
 #include<stdbool.h>
 #include<dirent.h>
 #include<time.h>
+#include<math.h>
 #include "../packet.h"
 
 //check whether the input is correct
@@ -152,20 +153,36 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
         }
     }
 
-    //send fragments with stop-and-wait
+    
 
-    //set a timer for receiving 
+    //initializing timeout calculation variables/parameters
+    double SampleRTT = 0;
+    double EstimatedRTT = 0;
+    double DevRTT = 0;
+    double TimeoutInterval = 0;
+    const double ALPHA = 0.125;
+    const double BETA = 0.25;
+
+    //initialize timeout value
     struct timeval timer;
-    timer.tv_sec = 0;
-    timer.tv_usec = 500000;
+    timer.tv_sec = 1;
+    timer.tv_usec = 0;
 
+    TimeoutInterval = timer.tv_sec + (double)timer.tv_usec / 10e6;
+
+    bool isRetransmit = false;
     if (setsockopt(mySocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timer, sizeof(timer)) < 0)
         syserror("set timer");
 
+    //send fragments with stop-and-wait
     for (int i = 0; i < number_frag; ++i){
         //send the fragment
         int size = 0;
         char* message = p_to_s(&fragments[i], &size);
+
+        //get the begin time
+        clock_t begin = clock();
+
         if (sendto(mySocket, message, size, 0, dest_addr, sizeof(struct sockaddr_storage)) <= 0)
             syserror("sendto");
 
@@ -179,8 +196,12 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
             printf("Fragment #%d time out! Retransmitting...\n", i + 1);
             i--;
             free(message);
+            isRetransmit = true;
             continue;
         }
+
+        //get the end time
+        clock_t end = clock();
   
         //check the reply ACK message
         //struct packet* ACK = s_to_p(buf);
@@ -195,8 +216,45 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
             printf("Acknowledge for fragment #%d message did not match! Retransmitting...\n", i + 1);
             i--;
             free(message);
+            isRetransmit = true;
             continue;
         }
+
+        /*==============calculate the round-trip time=============*/
+        if (!isRetransmit){ //if the segment was retransmitted, ignore its RTT
+            SampleRTT = ((double)(end - begin)) / CLOCKS_PER_SEC;
+
+            if (EstimatedRTT == 0) { //when initlalizing
+                EstimatedRTT = SampleRTT;
+            } else{
+                EstimatedRTT = (1 - ALPHA) * EstimatedRTT + ALPHA * SampleRTT;
+            }
+
+            //initially DevRTT = 0
+            DevRTT = (1 - BETA) * DevRTT + BETA * fabs(SampleRTT - EstimatedRTT);
+            TimeoutInterval = EstimatedRTT + 4 * DevRTT; //in seconds
+            
+            //reset the timer
+            timer.tv_sec = (int)TimeoutInterval;
+            timer.tv_usec = (TimeoutInterval - (int)TimeoutInterval) * 10e6;
+
+            if (setsockopt(mySocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timer, sizeof(timer)) < 0)
+                syserror("set timer");
+        } else{
+            printf("\nRetransmitted segment, do not recalculate timeout interval...\n");
+        }
+        
+        isRetransmit = false;
+
+        printf("\nSampleRTT: %f sec\n"
+                "EstimatedRTT: %f sec\n"
+                "DevRTT: %f sec\n"
+                "TimeoutInterval: %f sec\n"
+                "tv_sec: %d sec\n"
+                "tv_usec: %f usec\n\n", SampleRTT, EstimatedRTT, DevRTT, TimeoutInterval, (int)TimeoutInterval, (TimeoutInterval - (int)TimeoutInterval) * 10e6);
+        
+        /*========================================================*/
+
         printf("Received ACK of fragment #%d\n", i + 1);
         free(message);
     }
