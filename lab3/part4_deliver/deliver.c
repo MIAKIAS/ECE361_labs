@@ -191,6 +191,7 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
         struct sockaddr_in from;
         int fromLen = sizeof(struct sockaddr_storage);
 
+Drop_Wait:
         if (recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen) <= 0){
             //if failed, may time out, retry
             printf("Fragment #%d time out! Retransmitting...\n", i + 1);
@@ -213,11 +214,8 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
         strcat(ack, ackNum);
 
         if (strcmp(buf, ack) != 0){
-            printf("Acknowledge for fragment #%d message did not match! Retransmitting...\n", i + 1);
-            i--;
-            free(message);
-            isRetransmit = true;
-            continue;
+            printf("Acknowledgement for fragment #%d message did not match! Drop and wait for the correct ACK...\n", i + 1);
+            goto Drop_Wait;
         }
 
         /*==============calculate the round-trip time=============*/
