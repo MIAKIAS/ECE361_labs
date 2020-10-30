@@ -130,7 +130,7 @@ int main(int argc, char** argv){
         fwrite(fragment->filedata, sizeof(char), fragment->size, f);
         
         //get ack#
-        char ack[100] = "ACK#";
+        char ack[100] = "ACK#3";
         char ackNum[10] = {0};
         sprintf(ackNum, "%d", fragment->frag_no);
         strcat(ack, ackNum);
