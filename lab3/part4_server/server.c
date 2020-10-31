@@ -73,9 +73,10 @@ int main(int argc, char** argv){
     //we only focus on IPv4
     struct sockaddr_in from;
     int fromLen = sizeof(struct sockaddr_storage);
-    
-    //keep accepting message from client
-    int bytesReceived = recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen);
+    int bytesReceived;
+
+RECEIVE_FIRST:    //keep accepting message from client
+    bytesReceived = recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen);
     if (bytesReceived < 0){
         if (sendto(mySocket, "NACK", strlen("NACK"), 0, (struct sockaddr*)&from, fromLen) <= 0)
                 syserror("sendto_NACK");
@@ -89,8 +90,12 @@ int main(int argc, char** argv){
     int total_fragments;
     char *path;
 
-
-    if(fragment->frag_no == 1){
+    //check whether it is the first packet
+    if(fragment->frag_no != 1){
+        clear_packet(fragment);
+        goto RECEIVE_FIRST;
+    }
+    else{
         if (sendto(mySocket, "ACK#1", strlen("ACK#1"), 0, (struct sockaddr*)&from, fromLen) <= 0)
             syserror("sendto_ACK");
         
@@ -104,7 +109,7 @@ int main(int argc, char** argv){
         total_fragments = fragment->total_frag;
         printf("total_fragments: %d\n", total_fragments);
         fwrite(fragment->filedata, sizeof(char), fragment->size, f);
-        printf("Received from deliver, writing to file...\n");
+        printf("Received from deliver, writing to file, send ACK#1 to server\n"); 
 
         if(total_fragments == 1){
             printf("Done\n");
@@ -116,21 +121,28 @@ int main(int argc, char** argv){
     int i = 0;
 
     for(i = 2; i <= total_fragments; ++i){
+RECEIVE_NEXT:
         if(recvfrom(mySocket, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fromLen) <= 0){
             syserror("recvfrom");
-
+            
             if (sendto(mySocket, "NACK", strlen("NACK"), 0, (struct sockaddr*)&from, fromLen) <= 0)
                 syserror("sendto_NACK");
 
             break;
         }
-
-        
+       
         fragment = s_to_p(buf);
+
+        //check packet sequence is the next one
+        if(fragment->frag_no != i){
+            clear_packet(fragment);
+            goto RECEIVE_NEXT;
+        }
+
         fwrite(fragment->filedata, sizeof(char), fragment->size, f);
         
         //get ack#
-        char ack[100] = "ACK#3";
+        char ack[100] = "ACK#";
         char ackNum[10] = {0};
         sprintf(ackNum, "%d", fragment->frag_no);
         strcat(ack, ackNum);
@@ -143,7 +155,7 @@ int main(int argc, char** argv){
             break;
         }
 
-        printf("Received from deliver, writing to file...\n");    
+        printf("Received from deliver, writing to file, send %s to server\n", ack);    
     }
 
     fclose(f);
