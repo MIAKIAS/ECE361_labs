@@ -45,7 +45,7 @@ char* p_to_s(struct packet* myPacket, int* size){
 
 //transfer string message to packet
 struct packet* s_to_p(char* buffer){
-    printf("buffer: %s\n", buffer);
+    //printf("buffer: %s\n", buffer);
     
     struct packet *fragment = malloc(sizeof(struct packet));
 
