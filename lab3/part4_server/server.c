@@ -133,20 +133,24 @@ RECEIVE_NEXT:
        
         fragment = s_to_p(buf);
 
-        //check packet sequence is the next one
-        if(fragment->frag_no != i){
-            clear_packet(fragment);
-            goto RECEIVE_NEXT;
-        }
-
-        fwrite(fragment->filedata, sizeof(char), fragment->size, f);
-        
         //get ack#
         char ack[100] = "ACK#";
         char ackNum[10] = {0};
         sprintf(ackNum, "%d", fragment->frag_no);
         strcat(ack, ackNum);
         printf("%s\n", ack);
+
+        //check packet sequence is the next one
+        if(fragment->frag_no != i){
+            if (sendto(mySocket, ack, strlen(ack), 0, (struct sockaddr*)&from, fromLen) <= 0){
+                syserror("sendto_ACK");
+                break;
+            }
+            clear_packet(fragment);
+            goto RECEIVE_NEXT;
+        }
+
+        fwrite(fragment->filedata, sizeof(char), fragment->size, f);
 
         clear_packet(fragment);
 
