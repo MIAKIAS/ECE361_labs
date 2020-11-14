@@ -18,6 +18,8 @@
 
 #define NUM_CONNECTIONS 8
 
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; //no use
+
 struct session_info {
     char *session_id;
     int num_clients;
@@ -160,11 +162,6 @@ void usage(){
 	exit(1);
 }
 
-void syserror(char* name){
-    fprintf(stderr, "%s\n", name);
-    exit(1);
-}
-
 int main(int argc, char** argv){
     //first check input format
     if (argc != 2) usage(); 
@@ -223,6 +220,26 @@ int main(int argc, char** argv){
             syserror("accept");
         }
 
+        /*==========for testing the client=================*/
+        char test[255] = {0};
+        if (recv(new_socket, test, 255, 0) <= 0){
+            syserror("recv");
+        }
+        printf("%s\n", test);
+        strcpy(test, "LO_ACK");
+        if (send(new_socket, test, strlen(test) + 1, 0) <= 0){
+            syserror("send");
+        }
+        printf("here\n");
+        if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
+            syserror("send");
+        }
+        while(true){
+            if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
+                syserror("send");
+            }
+        }
+        /*================================================*/
         //check if new user socket already in user list
         //add_to_client_list(new_socket);
 
