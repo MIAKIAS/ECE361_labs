@@ -163,9 +163,9 @@ void sendFileTo(char* filePath, int mySocket, struct sockaddr* dest_addr, sockle
     const double ALPHA = 0.125;
     const double BETA = 0.25;
 
-    //initialize timeout value
+    //initialize timeout value according to RFC
     struct timeval timer;
-    timer.tv_sec = 1;
+    timer.tv_sec = 2;
     timer.tv_usec = 0;
 
     TimeoutInterval = timer.tv_sec + (double)timer.tv_usec / 10e6;
