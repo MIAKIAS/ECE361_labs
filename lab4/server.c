@@ -36,7 +36,14 @@ struct session_queue {
 struct session_queue session_q;
 
 
-struct client clients[MAX_CLIENTS_NUMBER];
+struct client clients[MAX_CLIENTS_NUMBER] = {
+    {.ID = "test_id1", .password = "password1", .active = false, 
+        .client_socket = -1, .in_session = false, .session_id = NULL},
+    {.ID = "test_id2", .password = "password2", .active = false, 
+        .client_socket = -1, .in_session = false, .session_id = NULL},
+    {.ID = "test_id3", .password = "password3", .active = false, 
+        .client_socket = -1, .in_session = false, .session_id = NULL}
+};
 //struct client_list clients;
 //clients.head = NULL;
 
@@ -153,6 +160,32 @@ void delete_client_in_session(char *id, struct client_id_list *list){
     }
 }
 
+//send list of users 
+void list_users(int client_socket){
+    // for(int i = 0; i < MAX_CLIENTS_NUMBER; ++i){
+    //     if(clients)
+    // }
+}
+
+//send list of sessions
+void list_sessions(int client_socket){
+    if(send(client_socket, "Available sessions:\n", strlen("Available sessions:\n"), 0) < 0){
+        syserror("send");
+    }
+
+    struct session_info *curr_session = session_q.head;
+
+    while(curr_session != NULL){
+        char *session_packet = malloc(sizeof(char) * (strlen(curr_session->session_id) + 2));
+        strcpy(session_packet, curr_session->session_id);
+        strcat(session_packet, "\n");
+
+        if(send(client_socket, session_packet, strlen(session_packet), 0) < 0){
+            syserror("send");
+        }
+    }
+}
+
 int read_command();
 void request_handler();
 
@@ -259,7 +292,7 @@ void request_handler(){
     char buf[255];
     struct message msg;
 
-    for(int i = 0; i < client_count; ++i){
+    for(int i = 0; i < MAX_CLIENTS_NUMBER; ++i){
         if(recv(clients[i].client_socket, buf, 255, 0) < 0){
             continue;
         }
@@ -271,13 +304,17 @@ void request_handler(){
         if(type == LOGIN){
             ;
         }else if(type == EXIT){
-            //logout();
+            //quit session
+            //set current client to inactive
         }else if(type == JOIN){
             int j;
             struct session_info *session_to_join = find_session(msg.data);
 
             if(session_to_join == NULL){
                 //response JN_NAK
+                if(send(clients[i].client_socket, "JN_NAK", strlen("JN_NAK"), 0) < 0){
+                    syserror("send");
+                }
             }else{
                 clients[i].in_session = true;
                 clients[i].session_id = malloc(sizeof(char) * (strlen(msg.data) + 1));
@@ -288,6 +325,9 @@ void request_handler(){
                 session_to_join->num_clients ++;
 
                 //response JN_ACK
+                if(send(clients[i].client_socket, "JN_ACK", strlen("JN_ACK"), 0) < 0){
+                    syserror("send");
+                }
             }
             
 
@@ -319,11 +359,15 @@ void request_handler(){
             //enque to session queue
             enque_session_queue(new_session);
             //response NS_ACK
+            if(send(clients[i].client_socket, "NS_ACK", strlen("NS_ACK"), 0) < 0){
+                syserror("send");
+            }
 
         }else if(type == MESSAGE){
             //multicase the message to all clients in the same session
         }else if(type == QUERY){
-
+            list_users(clients[i].client_socket);
+            list_sessions(clients[i].client_socket);
         }
 
 
@@ -333,3 +377,4 @@ void request_handler(){
 int read_command(){
     return 0;
 }
+

@@ -6,6 +6,7 @@
 struct client {
     char ID[MAX_NAME];
     char password[MAX_PASSWORD];
+    bool active;
     int client_socket;
     //struct client *next;
     bool in_session;
