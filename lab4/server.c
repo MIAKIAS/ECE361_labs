@@ -20,6 +20,14 @@
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; //no use
 
+pthread_mutex_t client_count_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t session_count_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t client_list_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t session_queue_lock = PTHREAD_MUTEX_INITIALIZER;
+
+pthread_t threads_client[MAX_THREADS];
+int thread_index = 0;
+
 struct session_info {
     char *session_id;
     int num_clients;
@@ -195,6 +203,8 @@ void usage(){
 	exit(1);
 }
 
+void *thread_request(int *client_socket);
+
 int main(int argc, char** argv){
     //first check input format
     if (argc != 2) usage(); 
@@ -246,37 +256,41 @@ int main(int argc, char** argv){
 
     session_q.head = NULL;
 
-    int new_socket;
     while(1){
-        new_socket = accept(mySocket, &addr, &addrlen);
+        int new_socket = accept(mySocket, &addr, &addrlen);
         if(new_socket == -1){
             syserror("accept");
         }
 
+        int *new_socket_ptr = malloc(sizeof(int));
+        *new_socket_ptr = new_socket;
+
+        pthread_t *new_thread = &threads_client[thread_index++];
+        pthread_create(new_thread, NULL, (void*)thread_request, new_socket_ptr);
         /*==========for testing the client=================*/
-        char test[255] = {0};
-        if (recv(new_socket, test, 255, 0) <= 0){
-            syserror("recv");
-        }
-        printf("%s\n", test);
-        strcpy(test, "LO_ACK");
-        if (send(new_socket, test, strlen(test) + 1, 0) <= 0){
-            syserror("send");
-        }
-        printf("here\n");
-        if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
-            syserror("send");
-        }
-        while(true){
-            if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
-                syserror("send");
-            }
-        }
+        // char test[255] = {0};
+        // if (recv(new_socket, test, 255, 0) <= 0){
+        //     syserror("recv");
+        // }
+        // printf("%s\n", test);
+        // strcpy(test, "LO_ACK");
+        // if (send(new_socket, test, strlen(test) + 1, 0) <= 0){
+        //     syserror("send");
+        // }
+        // printf("here\n");
+        // if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
+        //     syserror("send");
+        // }
+        // while(true){
+        //     if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
+        //         syserror("send");
+        //     }
+        // }
         /*================================================*/
         //check if new user socket already in user list
         //add_to_client_list(new_socket);
 
-        request_handler();
+        //request_handler();
 
         if(client_count <= 0){
             break;
@@ -378,3 +392,81 @@ int read_command(){
     return 0;
 }
 
+void *thread_request(int *client_socket){
+    char buf[255];
+    struct message msg;
+
+    if(recv(*client_socket, buf, 255, 0) < 0){
+        syserror("recv");
+        return NULL;
+    }
+
+    bool logged_in = false;
+
+    int type;
+
+    char *curr_client;
+
+LOGIN_LOOP:
+    while(!logged_in){
+        type = command_to_message(buf, &msg);
+
+        if(type != LOGIN){
+            if(send(*client_socket, "should log in first", strlen("should log in first"), 0) < 0){
+                syserror("send");
+            }
+            continue;
+        }
+
+        //handle login request
+        char *comma = strchr(msg.data, ',');
+        char *curr_client_id = malloc(sizeof(char) * (comma - (char*)msg.data));
+        strncpy(curr_client_id, msg.data, comma - (char*)msg.data);
+        curr_client_id[comma - (char*)msg.data] = '\0';
+        
+        int len = comma - (char*)msg.data;
+        char *curr_password = malloc(sizeof(char) * (strlen(msg.data) - len - 1));
+        strcpy(curr_password, comma);
+
+        int i;
+        for(i = 0; i < MAX_CLIENTS_NUMBER; ++i){
+            if(strcmp(curr_client_id, clients[i].ID) == 0 && strcmp(curr_password, clients[i].password) == 0){
+                
+                if(clients[i].active){
+                    if(send(*client_socket, "LO_NAK: the client has already logged in", 
+                            strlen("LO_NAK: the client has already logged in"), 0) < 0){
+                        syserror("send");
+                    }
+                    goto LOGIN_LOOP;
+                }
+
+                pthread_mutex_lock(&client_list_lock);
+                
+                clients[i].active = true;
+                clients[i].client_socket = *client_socket;
+
+                if(send(clients[i].client_socket, "LO_ACK", strlen("LO_ACK"), 0) < 0){
+                    syserror("send");
+                }
+
+                logged_in = true;
+
+                pthread_mutex_unlock(&client_list_lock);
+                break;
+            }
+        }
+
+        if(i == MAX_CLIENTS_NUMBER){
+            if(send(*client_socket, "LO_NAK: wrong id or wrong password", 
+                    strlen("LO_NAK: wrong id or wrong password"), 0) < 0){
+                syserror("send");
+            }
+        }
+    }
+
+    while(1){
+        type = command_to_message(buf, &msg);
+    }
+   
+    free(client_socket);
+}
