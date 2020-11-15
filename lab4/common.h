@@ -73,8 +73,8 @@ int command_to_message(char* buf, struct message *msg){
             }
         }
         
-        printf("\nType: %s\nSize: %d\nSource: %s\nData: %s\n\n",
-        "/login", msg->size, msg->source, msg->data);
+        // printf("\nType: %s\nSize: %d\nSource: %s\nData: %s\n\n",
+        // "/login", msg->size, msg->source, msg->data);
 
         return LOGIN;
 
@@ -83,8 +83,8 @@ int command_to_message(char* buf, struct message *msg){
         msg->type = EXIT;
         msg->size = 0;
         strcpy(msg->data, "");
-        //leave the USER ID Later
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "/logout", msg->size, msg->data);
 
         return EXIT;
@@ -99,7 +99,7 @@ int command_to_message(char* buf, struct message *msg){
             return -1;
         }
 
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "/joinsession", msg->size, msg->data);
 
         return JOIN;
@@ -110,7 +110,7 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = 0;
         strcpy(msg->data, "");
 
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "/leavesession", msg->size, msg->data);
 
         return LEAVE_SESS;
@@ -125,7 +125,7 @@ int command_to_message(char* buf, struct message *msg){
             return -1;
         }
 
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "/createsession", msg->size, msg->data);
 
         return NEW_SESS;
@@ -136,7 +136,7 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = 0;
         strcpy(msg->data, "");
   
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "/list", msg->size, msg->data);
 
         return QUERY;
@@ -146,7 +146,7 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = 0;
         strcpy(msg->data, "");
         
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "LO_ACK", msg->size, msg->data);
 
         return LO_ACK;
@@ -156,7 +156,7 @@ int command_to_message(char* buf, struct message *msg){
         strcpy(msg->data, buf + strlen("LO_NAK: "));
 
         
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "LO_NAK", msg->size, msg->data);
 
         return LO_ACK;
@@ -166,7 +166,7 @@ int command_to_message(char* buf, struct message *msg){
         strcpy(msg->data, buf + strlen("JN_ACK: "));
 
         
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "JN_ACK", msg->size, msg->data);
 
         return JN_ACK;
@@ -176,7 +176,7 @@ int command_to_message(char* buf, struct message *msg){
         strcpy(msg->data, buf + strlen("JN_NAK: "));
 
        
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "JN_NAK", msg->size, msg->data);
 
         return JN_NAK;
@@ -186,7 +186,7 @@ int command_to_message(char* buf, struct message *msg){
         strcpy(msg->data, buf + strlen("NS_ACK: "));
 
         
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "NS_ACK", msg->size, msg->data);
 
         return NS_ACK;
@@ -196,7 +196,7 @@ int command_to_message(char* buf, struct message *msg){
         strcpy(msg->data, buf + strlen("QU_ACK: "));
 
         
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "QU_ACK", msg->size, msg->data);
 
         return QU_ACK;
@@ -205,7 +205,7 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = strlen(buf);
         strcpy(msg->data, buf);
         
-        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // printf("\nType: %s\nSize: %d\nData: %s\n\n",
         // "message", msg->size, msg->data);
 
         return MESSAGE;

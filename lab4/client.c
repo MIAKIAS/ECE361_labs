@@ -32,12 +32,13 @@ bool isQuAckRecv = false;
 bool isNsAckRecv = false;
 bool isInSession = false;
 bool isLogIn = false;
+char curr_client_id[1024] = {0};
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+//define a thread to receive messages
+pthread_t receive_th;
 
 int main(){
-    //define a thread to receive messages
-    pthread_t receive_th;
 
     int mySocket = -1;
     
@@ -49,7 +50,7 @@ int main(){
         fgets(command, 1024, stdin);
         command[strlen(command) - 1] = 0; //fgets counts '\n'
 
-        printf("Command Typed: %s\n", command);
+        //printf("Command Typed: %s\n", command);
 
         if (strncmp(command, "/login", strlen("/login")) == 0){
 
@@ -60,7 +61,7 @@ int main(){
             mySocket = client_login(command);
             if (mySocket != -1){
                 isLogIn = true;
-
+                printf("Successfully Logged In...\n");
                 if (pthread_create(&receive_th, NULL, keep_receiving, &mySocket) != 0) {
                     syserror("thread create");
                 }
@@ -84,6 +85,7 @@ int main(){
             isNsAckRecv = false;
             isInSession = false;
             isLogIn = false;
+            memset(curr_client_id, 0, sizeof(curr_client_id));
             printf("Successfully Logged Out\n");
             pthread_mutex_unlock(&lock);
 
@@ -190,6 +192,8 @@ void* keep_receiving(void* mySocket){
 
         struct message msg_struct;
         int type = command_to_message(msg, &msg_struct);
+        strcpy(msg_struct.source, curr_client_id);
+        //printf("Source: %s\n", msg_struct.source);
 
         isLoAckRecv = false;
         isJnAckRecv = false;
@@ -203,8 +207,7 @@ void* keep_receiving(void* mySocket){
         } else if (type == JN_NAK){
             isJnAckRecv = true;
             isInSession = false;
-            char *reason = strchr(msg_struct.data, ' ');
-            printf("Failed To Join Session: %s\n", reason + 1);
+            printf("Failed To Join Session: %s\n", msg_struct.data);
         } else if (type == NS_ACK){
             isNsAckRecv = true;
             isInSession = true;
@@ -213,7 +216,7 @@ void* keep_receiving(void* mySocket){
             isQuAckRecv = true;
             printf("%s\n", msg_struct.data);
         } else{
-            printf("%s\n", msg_struct.data);
+            printf("%s: %s\n", msg_struct.source, msg_struct.data);
         } 
         pthread_mutex_unlock(&lock);
     }
@@ -240,7 +243,7 @@ int client_login(char* buf){
 
     strncpy(serverAddr, thirdSpace + 1, fourthpace - thirdSpace - 1);
     strcpy(port, fourthpace + 1);
-    printf("Server IP: %s\nServer Port: %s\n", serverAddr, port);
+    //printf("Server IP: %s\nServer Port: %s\n", serverAddr, port);
 
     /*===================Connect to the server==================*/
     //create the address information
@@ -289,25 +292,35 @@ int client_login(char* buf){
         syserror("recv");
     }
 
-    printf("Message Received: %s\n", confirm);
+    //printf("Message Received: %s\n", confirm);
 
-    struct message recv_msg;
-    recv_msg.type = -1;
-    recv_msg.size = -1;
-    strcpy(recv_msg.source, "");
-    strcpy(recv_msg.data, "");
+    
     if (strncmp(confirm, "LO_ACK", strlen("LO_ACK")) == 0){
+        struct message msg;
+        msg.type = -1;
+        msg.size = -1;
+        strcpy(msg.source, "");
+        strcpy(msg.data, "");
+        int type = command_to_message(buf, &msg);
+        char *comma = strchr(msg.data, ' ');
+        strncpy(curr_client_id, msg.data, comma - (char*)msg.data);
+
         return mySocket;
     } else{
-        int type = command_to_message(confirm, &recv_msg);
-        printf("Log In Failed: %s\n", recv_msg.data);
+        struct message msg;
+        msg.type = -1;
+        msg.size = -1;
+        strcpy(msg.source, "");
+        strcpy(msg.data, "");
+        int type = command_to_message(confirm, &msg);
+        printf("Log In Failed: %s\n", msg.data);
         return -1;
     }
     /*===========================================================*/
 }
 
 int client_logout(int mySocket){
-    if (send(mySocket, "/logout", strlen("logout") + 1, 0) <= 0){
+    if (send(mySocket, "/logout", strlen("/logout") + 1, 0) <= 0){
         syserror("send");
     }
     return 0;
@@ -360,7 +373,6 @@ int client_list(int mySocket){
 // }
 
 int client_text(int mySocket, char* msg){
-
     if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
