@@ -4,8 +4,9 @@
 
 #define MAX_NAME 255
 #define MAX_DATA 255
-#define MAX_CLIENTS_NUMBER 10
+#define MAX_CLIENTS_NUMBER 3
 #define MAX_PASSWORD 255
+#define MAX_THREADS 999
 
 #define LOGIN 1
 #define LO_ACK 2
@@ -35,10 +36,10 @@ struct message {
 
 int login();
 int logout();
-int join_session();
-int leave_session();
+
+
 //int create_session(char *session_id, struct client_list session_clients[MAX_SESSIONS]);
-int list();
+
 int quit();
 int send_message();
 int command_to_message(char* buf, struct message *msg);

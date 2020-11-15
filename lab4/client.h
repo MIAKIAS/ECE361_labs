@@ -17,12 +17,21 @@ struct client {
 //     struct client *head;
 // };
 
-struct client_id {
-    char ID[MAX_NAME];
-    struct client_id *next;
+// struct client_id {
+//     char ID[MAX_NAME];
+//     struct client_id *next;
+// };
+
+// struct client_id_list {
+//     struct client_id *head;
+// };
+
+struct client_index {
+    int index;
+    struct client_index *next;
 };
 
-struct client_id_list {
-    struct client_id *head;
+struct client_index_list {
+    struct client_index *head;
 };
 
