@@ -208,7 +208,7 @@ void* keep_receiving(void* mySocket){
         } else if (type == NS_ACK){
             isNsAckRecv = true;
             isInSession = true;
-            printf("Successfully Joined Session: %s\n", msg_struct.data);
+            printf("Successfully Created and Joined Session: %s\n", msg_struct.data);
         } else if (type == QU_ACK){
             isQuAckRecv = true;
             printf("%s\n", msg_struct.data);

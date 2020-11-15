@@ -83,17 +83,17 @@ void enque_session_queue(struct session_info *session){
 void clear_session(struct session_info *session){
     if(session_q.head == session){
         session_q.head = session_q.head->next;
-    }
-    
-    struct session_info *temp_session = session_q.head;   
+    }else{
+        struct session_info *temp_session = session_q.head;   
 
-    while(temp_session->next != NULL){
-        if(temp_session->next == session){
-            break;
+        while(temp_session->next != NULL){
+            if(temp_session->next == session){
+                break;
+            }
+            temp_session = temp_session->next;
         }
-        temp_session = temp_session->next;
+        temp_session->next = temp_session->next->next;
     }
-    temp_session->next = temp_session->next->next;
 
     //free current session
 
@@ -209,8 +209,13 @@ void list_users(int client_socket){
             //printf("%s\n", clients[i].ID);
             char buf[255] = {0};
             strcpy(buf, clients[i].ID);
-            strcat(buf, "\n");
 
+            if(clients[i].in_session){
+                strcat(buf, " , in session: ");
+                strcat(buf, clients[i].session_id);
+            }
+            strcat(buf, "\n");
+            
             if(send(client_socket, buf, strlen(buf), 0) < 0){
                 syserror("send");
             }
@@ -244,7 +249,7 @@ void list_sessions(int client_socket){
 
 //void request_handler();
 
-void join_session(struct client *curr_client, int client_socket, char *session_id, int data_size);
+void join_session(struct client *curr_client, int client_socket, char *session_id, int data_size, int type);
 void leave_session(struct client *curr_client);
 void create_session(struct client *curr_client, char *session_id, int data_size);
 void multicast_message(struct client *curr_client, char *message_data);
@@ -533,7 +538,7 @@ MAIN_LOOP:
     }
 
     else if(type == JOIN){
-        join_session(curr_client, curr_client->client_socket, msg.data, msg.size);
+        join_session(curr_client, curr_client->client_socket, msg.data, msg.size, msg.type);
               
         goto MAIN_LOOP;
     }
@@ -553,7 +558,7 @@ MAIN_LOOP:
         create_session(curr_client, msg.data, msg.size);
 
         if(!curr_client->in_session && msg.size > 0){
-            join_session(curr_client, curr_client->client_socket, msg.data, msg.size);
+            join_session(curr_client, curr_client->client_socket, msg.data, msg.size, msg.type);
         }
 
         goto MAIN_LOOP;
@@ -588,7 +593,7 @@ MAIN_LOOP:
     return NULL;
 }
 
-void join_session(struct client *curr_client, int client_socket, char *session_id, int data_size){
+void join_session(struct client *curr_client, int client_socket, char *session_id, int data_size, int type){
     char buf[255];
 
     if(data_size < 0){
@@ -643,12 +648,14 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
         pthread_mutex_unlock(&session_queue_lock);
 
         //response JN_ACK
-        strcpy(buf, "JN_ACK: ");
-        strcat(buf, session_id);
+        if(type == JOIN){
+            strcpy(buf, "JN_ACK: ");
+            strcat(buf, session_id);
 
-        if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
-            syserror("send");
-        }
+            if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+                syserror("send");
+            }
+        }        
     }
 }
 
@@ -670,13 +677,13 @@ void leave_session(struct client *curr_client){
     printf("here2\n");
     pthread_mutex_unlock(&session_queue_lock);
 
-    pthread_mutex_lock(&client_list_lock);
+    //pthread_mutex_lock(&client_list_lock);
 
     free(curr_client->session_id);
     curr_client->in_session = false;
     printf("here3\n");
 
-    pthread_mutex_unlock(&client_list_lock);
+    //pthread_mutex_unlock(&client_list_lock);
 }
 
 void create_session(struct client *curr_client, char *session_id, int data_size){
@@ -708,6 +715,7 @@ void create_session(struct client *curr_client, char *session_id, int data_size)
     strcpy(new_session->session_id, session_id);
     new_session->num_clients = 0;
     new_session->list.head = NULL;
+    new_session->next = NULL;
 
     pthread_mutex_lock(&session_queue_lock);
     //enque to session queue
