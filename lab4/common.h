@@ -73,7 +73,7 @@ int command_to_message(char* buf, struct message *msg){
             }
         }
         
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
+        printf("\nType: %s\nSize: %d\nSource: %s\nData: %s\n\n",
         "/login", msg->size, msg->source, msg->data);
 
         return LOGIN;
@@ -84,8 +84,8 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = 0;
         strcpy(msg->data, "");
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "/logout", msg->size, msg->data);
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "/logout", msg->size, msg->data);
 
         return EXIT;
 
@@ -99,9 +99,8 @@ int command_to_message(char* buf, struct message *msg){
             return -1;
         }
 
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "/joinsession", msg->size, msg->data);
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "/joinsession", msg->size, msg->data);
 
         return JOIN;
 
@@ -110,9 +109,9 @@ int command_to_message(char* buf, struct message *msg){
         msg->type = LEAVE_SESS;
         msg->size = 0;
         strcpy(msg->data, "");
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "/leavesession", msg->size, msg->data);
+
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "/leavesession", msg->size, msg->data);
 
         return LEAVE_SESS;
 
@@ -126,9 +125,8 @@ int command_to_message(char* buf, struct message *msg){
             return -1;
         }
 
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "/createsession", msg->size, msg->data);
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "/createsession", msg->size, msg->data);
 
         return NEW_SESS;
 
@@ -137,9 +135,9 @@ int command_to_message(char* buf, struct message *msg){
         msg->type = QUERY;
         msg->size = 0;
         strcpy(msg->data, "");
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "/list", msg->size, msg->data);
+  
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "/list", msg->size, msg->data);
 
         return QUERY;
 
@@ -147,9 +145,9 @@ int command_to_message(char* buf, struct message *msg){
         msg->type = LO_ACK;
         msg->size = 0;
         strcpy(msg->data, "");
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "LO_ACK", msg->size, msg->data);
+        
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "LO_ACK", msg->size, msg->data);
 
         return LO_ACK;
     }else if(strncmp(buf, "LO_NAK", strlen("LO_NAK")) == 0){
@@ -157,9 +155,9 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = strlen(buf) - strlen("LO_NAK: ");    
         strcpy(msg->data, buf + strlen("LO_NAK: "));
 
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "LO_NAK", msg->size, msg->data);
+        
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "LO_NAK", msg->size, msg->data);
 
         return LO_ACK;
     }else if(strncmp(buf, "JN_ACK", strlen("JN_ACK")) == 0){
@@ -167,9 +165,9 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = strlen(buf) - strlen("JN_ACK: ");    
         strcpy(msg->data, buf + strlen("JN_ACK: "));
 
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "JN_ACK", msg->size, msg->data);
+        
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "JN_ACK", msg->size, msg->data);
 
         return JN_ACK;
     }else if(strncmp(buf, "JN_NAK", strlen("JN_NAK")) == 0){
@@ -177,9 +175,9 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = strlen(buf) - strlen("JN_NAK: ");    
         strcpy(msg->data, buf + strlen("JN_NAK: "));
 
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "JN_NAK", msg->size, msg->data);
+       
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "JN_NAK", msg->size, msg->data);
 
         return JN_NAK;
     }else if(strncmp(buf, "NS_ACK", strlen("NS_ACK")) == 0){
@@ -187,9 +185,9 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = strlen(buf) - strlen("NS_ACK: ");    
         strcpy(msg->data, buf + strlen("NS_ACK: "));
 
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "NS_ACK", msg->size, msg->data);
+        
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "NS_ACK", msg->size, msg->data);
 
         return NS_ACK;
     }else if(strncmp(buf, "QU_ACK", strlen("QU_ACK")) == 0){
@@ -197,18 +195,19 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = strlen(buf) - strlen("QU_ACK: ");    
         strcpy(msg->data, buf + strlen("QU_ACK: "));
 
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "QU_ACK", msg->size, msg->data);
+        
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "QU_ACK", msg->size, msg->data);
 
         return QU_ACK;
     }else {
         msg->type = MESSAGE;
         msg->size = strlen(buf);
         strcpy(msg->data, buf);
-        //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nData: %s\n",
-        "message", msg->size, msg->data);
+        
+        // printf("Type: %s\nSize: %d\nData: %s\n",
+        // "message", msg->size, msg->data);
+
         return MESSAGE;
     }
         

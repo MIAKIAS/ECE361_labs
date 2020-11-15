@@ -49,7 +49,8 @@ int main(){
         fgets(command, 1024, stdin);
         command[strlen(command) - 1] = 0; //fgets counts '\n'
 
-        
+        printf("Command Typed: %s\n", command);
+
         if (strncmp(command, "/login", strlen("/login")) == 0){
 
             if (isLogIn){
@@ -83,6 +84,7 @@ int main(){
             isNsAckRecv = false;
             isInSession = false;
             isLogIn = false;
+            printf("Successfully Logged Out\n");
             pthread_mutex_unlock(&lock);
 
         } else if (strncmp(command, "/joinsession", strlen("/joinsession")) == 0){
@@ -110,6 +112,7 @@ int main(){
 
             pthread_mutex_lock(&lock);
             isInSession = false;
+            printf("Successfully Left Session\n");
             pthread_mutex_unlock(&lock);
 
         } else if (strncmp(command, "/createsession", strlen("/createsession")) == 0){
@@ -178,11 +181,12 @@ void* keep_receiving(void* mySocket){
 
         char msg[255] = {0};
         if (recv(*temp, msg, 254, 0) <= 0){
+            if (isLogIn == false) return NULL;
             syserror("recv");
         }
 
         pthread_mutex_lock(&lock);
-        printf("Message Received: %s\n", msg);
+        //printf("Message Received: %s\n", msg);
 
         struct message msg_struct;
         int type = command_to_message(msg, &msg_struct);

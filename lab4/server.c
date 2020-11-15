@@ -207,7 +207,7 @@ void list_users(int client_socket){
     for(int i = 0; i < MAX_CLIENTS_NUMBER; ++i){
         if(clients[i].active){
             //printf("%s\n", clients[i].ID);
-            char buf[255];
+            char buf[255] = {0};
             strcpy(buf, clients[i].ID);
             strcat(buf, "\n");
 
@@ -230,7 +230,7 @@ void list_sessions(int client_socket){
 
     while(curr_session != NULL){
         //printf("%s\n", curr_session->session_id);
-        char session_packet[255];
+        char session_packet[255] = {0};
         strcpy(session_packet, curr_session->session_id);
         strcat(session_packet, "\n");
 
@@ -318,26 +318,7 @@ int main(int argc, char** argv){
 
         pthread_t *new_thread = &threads_client[thread_index++];
         pthread_create(new_thread, NULL, (void*)thread_request, new_socket_ptr);
-        /*==========for testing the client=================*/
-        // char test[255] = {0};
-        // if (recv(new_socket, test, 255, 0) <= 0){
-        //     syserror("recv");
-        // }
-        // printf("%s\n", test);
-        // strcpy(test, "LO_ACK");
-        // if (send(new_socket, test, strlen(test) + 1, 0) <= 0){
-        //     syserror("send");
-        // }
-        // printf("here\n");
-        // if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
-        //     syserror("send");
-        // }
-        // while(true){
-        //     if (send(new_socket, "test", strlen("test") + 1, 0) <= 0){
-        //         syserror("send");
-        //     }
-        // }
-        /*================================================*/
+
         //check if new user socket already in user list
         //add_to_client_list(new_socket);
 
@@ -466,12 +447,6 @@ MAIN_LOOP:
     printf("Command Received: %s\n", buf);
 
     if(type == LOGIN){
-        // if(type != LOGIN){
-        //     if(send(*client_socket, "should log in first", strlen("should log in first"), 0) < 0){
-        //         syserror("send");
-        //     }
-        //     goto MAIN_LOOP;
-        // }
 
         //handle login request
         char *comma = strchr(msg.data, ' ');
@@ -718,7 +693,7 @@ void create_session(struct client *curr_client, char *session_id, int data_size)
     }
     
     if(curr_client->in_session){
-        strcpy(buf, "NS_NAK: ");
+        strcpy(buf, "JN_NAK: ");
         strcat(buf, "Current client already in a session");
 
         if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
