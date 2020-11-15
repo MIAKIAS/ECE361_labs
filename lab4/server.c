@@ -116,7 +116,7 @@ struct session_info *find_session(char *session_id){
     struct session_info *temp = session_q.head;
 
     while(temp != NULL){
-        if(strcmp(temp->session_id, session_id)){
+        if(strcmp(temp->session_id, session_id) == 0){
             return temp;
         }
         temp = temp->next;
@@ -196,7 +196,7 @@ void delete_client_in_session(char *id, struct client_index_list *list){
 
 //send list of users 
 void list_users(int client_socket){
-    if(send(client_socket, "QU_ACK:\nOnline users:\n", strlen("QU_ACK:\nOnline users:\n"), 0) < 0){
+    if(send(client_socket, "QU_ACK: Online users:\n", strlen("QU_ACK: Online users:\n"), 0) < 0){
         syserror("send");
     }
 
@@ -433,40 +433,48 @@ int main(int argc, char** argv){
 
 
 void *thread_request(int *client_socket){
-    char buf[255];
+    char buf[255] = {0};
     struct message msg;
+    bool logged_in = false;
 
+    int type = -1;
+
+    struct client *curr_client = NULL;
+
+MAIN_LOOP:
+    memset(buf, 0, sizeof(buf));
     if(recv(*client_socket, buf, 255, 0) < 0){
         syserror("recv");
         return NULL;
     }
 
-    bool logged_in = false;
+    type = command_to_message(buf, &msg);
+    if (curr_client != NULL){
+        strcpy(msg.source, curr_client->ID);   
+        printf("Source: %s\n", msg.source);
+    } 
 
-    int type;
+    printf("Command Received: %s\n", buf);
 
-    struct client *curr_client;
-
-LOGIN_LOOP:
-    while(!logged_in){
-        type = command_to_message(buf, &msg);
-
-        if(type != LOGIN){
-            if(send(*client_socket, "should log in first", strlen("should log in first"), 0) < 0){
-                syserror("send");
-            }
-            continue;
-        }
+    if(type == LOGIN){
+        // if(type != LOGIN){
+        //     if(send(*client_socket, "should log in first", strlen("should log in first"), 0) < 0){
+        //         syserror("send");
+        //     }
+        //     goto MAIN_LOOP;
+        // }
 
         //handle login request
-        char *comma = strchr(msg.data, ',');
+        char *comma = strchr(msg.data, ' ');
         char *curr_client_id = malloc(sizeof(char) * (comma - (char*)msg.data));
+        memset(curr_client_id, 0, sizeof(*curr_client_id));
         strncpy(curr_client_id, msg.data, comma - (char*)msg.data);
-        curr_client_id[comma - (char*)msg.data] = '\0';
         
         int len = comma - (char*)msg.data;
         char *curr_password = malloc(sizeof(char) * (strlen(msg.data) - len - 1));
-        strcpy(curr_password, comma);
+        memset(curr_password, 0, sizeof(*curr_password));
+        char *comma_next = strchr(comma + 1, ' ');
+        strncpy(curr_password, comma + 1, comma_next - comma - 1);
 
         int i;
         for(i = 0; i < MAX_CLIENTS_NUMBER; ++i){
@@ -484,7 +492,7 @@ LOGIN_LOOP:
                     free(curr_client_id);
                     free(curr_password);
 
-                    goto LOGIN_LOOP;
+                    goto MAIN_LOOP;
                 }
                 
                 clients[i].active = true;
@@ -512,68 +520,66 @@ LOGIN_LOOP:
             }
 
             free(curr_client_id);
-            free(curr_password);
-
-            goto LOGIN_LOOP;
+            free(curr_password);          
         }
-
+        goto MAIN_LOOP;
     }
 
-REQUEST_LOOP:
-    while(1){
-        type = command_to_message(buf, &msg);
+    if(type == EXIT){
+        pthread_mutex_lock(&client_list_lock);
 
-        if(type == EXIT){
-            pthread_mutex_lock(&client_list_lock);
-
-            if(curr_client->in_session){
-                if(send(curr_client->client_socket, "Cannot log out: should leave session first", 
-                        strlen("Cannot log out: should leave session first"), 0) < 0){
-                    syserror("send");
-                }
-                pthread_mutex_unlock(&client_list_lock);
-                goto REQUEST_LOOP;
+        if(curr_client->in_session){
+            if(send(curr_client->client_socket, "Cannot log out: should leave session first", 
+                    strlen("Cannot log out: should leave session first"), 0) < 0){
+                syserror("send");
             }
-
-            curr_client->active = false;
-            curr_client->client_socket = -1;
-            logged_in = false;
-
             pthread_mutex_unlock(&client_list_lock);
-            goto LOGIN_LOOP;
+            goto MAIN_LOOP;
         }
 
-        else if(type == JOIN){
-            join_session(curr_client, curr_client->client_socket, msg.data);
-        }
+        curr_client->active = false;
+        curr_client->client_socket = -1;
+        logged_in = false;
 
-        else if(type == LEAVE_SESS){
-            if(!curr_client->in_session){
-                if(send(curr_client->client_socket, "Not in any session", strlen("Not in any session"), 0) < 0){
-                    syserror("send");
-                }
-                goto REQUEST_LOOP;
+        pthread_mutex_unlock(&client_list_lock);
+        goto MAIN_LOOP;
+    }
+
+    else if(type == JOIN){
+        join_session(curr_client, curr_client->client_socket, msg.data);
+        goto MAIN_LOOP;
+    }
+
+    else if(type == LEAVE_SESS){
+        if(!curr_client->in_session){
+            if(send(curr_client->client_socket, "Not in any session", strlen("Not in any session"), 0) < 0){
+                syserror("send");
             }
-            leave_session(curr_client);
+            goto MAIN_LOOP;
         }
+        leave_session(curr_client);
+        goto MAIN_LOOP;
+    }
 
-        else if(type == NEW_SESS){
-            create_session(curr_client, msg.data);
-        }
+    else if(type == NEW_SESS){
+        create_session(curr_client, msg.data);
+        goto MAIN_LOOP;
+    }
 
-        else if(type == QUERY){
-            pthread_mutex_lock(&client_list_lock);
-            list_users(curr_client->client_socket);
-            pthread_mutex_unlock(&client_list_lock);
+    else if(type == QUERY){
+        pthread_mutex_lock(&client_list_lock);
+        list_users(curr_client->client_socket);
+        pthread_mutex_unlock(&client_list_lock);
 
-            pthread_mutex_lock(&session_queue_lock);
-            list_sessions(curr_client->client_socket);
-            pthread_mutex_unlock(&session_queue_lock);
-        }
+        pthread_mutex_lock(&session_queue_lock);
+        list_sessions(curr_client->client_socket);
+        pthread_mutex_unlock(&session_queue_lock);
+        goto MAIN_LOOP;
+    }
 
-        else if(type == MESSAGE){
-            multicast_message(curr_client, msg.data);
-        }
+    else if(type == MESSAGE){
+        multicast_message(curr_client, msg.data);
+        goto MAIN_LOOP;
     }
    
     free(client_socket);
@@ -626,27 +632,29 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
 
 void leave_session(struct client *curr_client){
 
-    pthread_mutex_lock(&client_list_lock);
-
-    free(curr_client->session_id);
-    curr_client->in_session = false;
-
-    pthread_mutex_unlock(&client_list_lock);
-
     pthread_mutex_lock(&session_queue_lock);
 
     struct session_info *temp_session = find_session(curr_client->session_id);
     //delete current client in the session
     delete_client_in_session(curr_client->ID, &(temp_session->list));
     temp_session->num_clients --;
+    printf("here1\n");
 
     if(temp_session->num_clients <= 0){
         //remove session
         clear_session(temp_session);
         session_count --;
     }
-
+    printf("here2\n");
     pthread_mutex_unlock(&session_queue_lock);
+
+    pthread_mutex_lock(&client_list_lock);
+
+    free(curr_client->session_id);
+    curr_client->in_session = false;
+    printf("here3\n");
+
+    pthread_mutex_unlock(&client_list_lock);
 }
 
 void create_session(struct client *curr_client, char *session_id){
@@ -663,7 +671,7 @@ void create_session(struct client *curr_client, char *session_id){
 
     //response NS_ACK
     char buf[255];
-    strcpy(buf, "NS_ACK");
+    strcpy(buf, "NS_ACK: ");
     strcat(buf, session_id);
     if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
         syserror("send");

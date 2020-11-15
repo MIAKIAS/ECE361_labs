@@ -26,6 +26,13 @@ int client_list(int mySocket);
 int client_text(int mySocket, char* msg);
 int client_exit(int mySocket);
 
+bool isLoAckRecv = false;
+bool isJnAckRecv = false;
+bool isQuAckRecv = false;
+bool isNsAckRecv = false;
+bool isInSession = false;
+bool isLogIn = false;
+
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 int main(){
@@ -33,8 +40,7 @@ int main(){
     pthread_t receive_th;
 
     int mySocket = -1;
-    bool isLogIn = false;
-    bool isInSession = false;
+    
 
     while (true){
         //keep receiving commands
@@ -46,41 +52,51 @@ int main(){
         
         if (strncmp(command, "/login", strlen("/login")) == 0){
 
+            if (isLogIn){
+                printf("You Have Already Logged In Another Account, Please Log Out first...\n");
+                continue;
+            }
             mySocket = client_login(command);
             if (mySocket != -1){
                 isLogIn = true;
+
                 if (pthread_create(&receive_th, NULL, keep_receiving, &mySocket) != 0) {
                     syserror("thread create");
                 }
             } else {
-                printf("Log In Failed, Please Try Again...\n");
                 continue;
             }
 
         } else if (strncmp(command, "/logout", strlen("/logout")) == 0){
-
+            pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
                 continue;
             }
+            pthread_mutex_unlock(&lock);
             client_logout(mySocket);
+
+            pthread_mutex_lock(&lock);
+            isLoAckRecv = false;
+            isJnAckRecv = false;
+            isQuAckRecv = false;
+            isNsAckRecv = false;
+            isInSession = false;
             isLogIn = false;
+            pthread_mutex_unlock(&lock);
 
         } else if (strncmp(command, "/joinsession", strlen("/joinsession")) == 0){
-
+            pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
                 continue;
             }
-            if (client_join_session(mySocket, command) != -1){
-                isInSession = true;
-            } else{
-                printf("Sessison Join Failed, Please Try Again...\n");
-                continue;
-            }
+            pthread_mutex_unlock(&lock);
 
+            client_join_session(mySocket, command);
 
         } else if (strncmp(command, "/leavesession", strlen("/leavesession")) == 0){
+            pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
                 continue;
@@ -88,34 +104,40 @@ int main(){
                 printf("You Have To Join a Session First, Please Try Again...\n");
                 continue;
             }
+            pthread_mutex_unlock(&lock);
+
             client_leave_session(mySocket);
+
+            pthread_mutex_lock(&lock);
             isInSession = false;
+            pthread_mutex_unlock(&lock);
 
         } else if (strncmp(command, "/createsession", strlen("/createsession")) == 0){
+            pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
                 continue;
             }
+            pthread_mutex_unlock(&lock);
 
-            if (client_create_session(mySocket, command) != -1){
-                isInSession = true;
-            } else{
-                printf("Sessison Creation Failed, Please Try Again...\n");
-                continue;
-            }
+            client_create_session(mySocket, command);
             
         } else if (strncmp(command, "/list", strlen("/list")) == 0){
 
+            pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
                 continue;
             }
+            pthread_mutex_unlock(&lock);
 
             client_list(mySocket);
             
         } else if (strncmp(command, "/quit", strlen("/quit")) == 0){
 
-            client_exit(mySocket);
+            if (isLogIn){
+                client_logout(mySocket);
+            }
 
             close(mySocket);
             pthread_mutex_destroy(&lock);
@@ -125,7 +147,7 @@ int main(){
             return 0;
 
         } else{ //this is for the text command
-
+            pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
                 continue;
@@ -133,6 +155,7 @@ int main(){
                 printf("You Have To Join a Session First, Please Try Again...\n");
                 continue;
             }
+            pthread_mutex_unlock(&lock);
 
             client_text(mySocket, command);
 
@@ -148,12 +171,46 @@ int main(){
 void* keep_receiving(void* mySocket){
     int* temp = (int*)mySocket;
     while (true){
-        pthread_mutex_lock(&lock);
+        
+        if (isLogIn == false){
+            return NULL;
+        }
+
         char msg[255] = {0};
         if (recv(*temp, msg, 254, 0) <= 0){
             syserror("recv");
         }
-        printf("%s\n", msg);
+
+        pthread_mutex_lock(&lock);
+        printf("Message Received: %s\n", msg);
+
+        struct message msg_struct;
+        int type = command_to_message(msg, &msg_struct);
+
+        isLoAckRecv = false;
+        isJnAckRecv = false;
+        isQuAckRecv = false;
+        isNsAckRecv = false;
+
+        if (type == JN_ACK){
+            isJnAckRecv = true;
+            isInSession = true;
+            printf("Successfully Joined Session: %s\n", msg_struct.data);
+        } else if (type == JN_NAK){
+            isJnAckRecv = true;
+            isInSession = false;
+            char *reason = strchr(msg_struct.data, ' ');
+            printf("Failed To Join Session: %s\n", reason + 1);
+        } else if (type == NS_ACK){
+            isNsAckRecv = true;
+            isInSession = true;
+            printf("Successfully Joined Session: %s\n", msg_struct.data);
+        } else if (type == QU_ACK){
+            isQuAckRecv = true;
+            printf("%s\n", msg_struct.data);
+        } else{
+            printf("%s\n", msg_struct.data);
+        } 
         pthread_mutex_unlock(&lock);
     }
 }
@@ -235,95 +292,74 @@ int client_login(char* buf){
     recv_msg.size = -1;
     strcpy(recv_msg.source, "");
     strcpy(recv_msg.data, "");
-    if (strcmp(confirm, "LO_ACK") == 0){
+    if (strncmp(confirm, "LO_ACK", strlen("LO_ACK")) == 0){
         return mySocket;
     } else{
+        int type = command_to_message(confirm, &recv_msg);
+        printf("Log In Failed: %s\n", recv_msg.data);
         return -1;
     }
     /*===========================================================*/
 }
 
 int client_logout(int mySocket){
-    pthread_mutex_lock(&lock);
     if (send(mySocket, "/logout", strlen("logout") + 1, 0) <= 0){
         syserror("send");
     }
-    pthread_mutex_unlock(&lock);
     return 0;
 }
 
 int client_join_session(int mySocket, char* msg){
-    pthread_mutex_lock(&lock);
     if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
-    
-    char confirm[255] = {0};
-    if (recv(mySocket, confirm, 255, 0) <= 0){
-        syserror("recv");
-    }
 
-    pthread_mutex_unlock(&lock);
+    while (!isJnAckRecv){}
 
-    if (strcmp(confirm, "JN_ACK") == 0){
-        return 1;
-    } else{
-        return -1;
-    }
+    return 0;
 }
 
 int client_create_session(int mySocket, char* msg){
-    pthread_mutex_lock(&lock);
+
     if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
     
-    char confirm[255] = {0};
-    if (recv(mySocket, confirm, 255, 0) <= 0){
-        syserror("recv");
-    }
-
-    pthread_mutex_unlock(&lock);
-
-    if (strcmp(confirm, "NS_ACK") == 0){
-        return 1;
-    } else{
-        return -1;
-    }
+    return 0;
 }
 
 int client_leave_session(int mySocket){
-    pthread_mutex_lock(&lock);
+
     if (send(mySocket, "/leavesession", strlen("leavesession") + 1, 0) <= 0){
         syserror("send");
     }
-    pthread_mutex_unlock(&lock);
+
     return 0;
 }
 
 int client_list(int mySocket){
-    pthread_mutex_lock(&lock);
+
     if (send(mySocket, "/list", strlen("/list") + 1, 0) <= 0){
         syserror("send");
     }
-    pthread_mutex_unlock(&lock);
+
     return 0;
 }
 
-int client_exit(int mySocket){
-    pthread_mutex_lock(&lock);
-    if (send(mySocket, "/quit", strlen("/quit") + 1, 0) <= 0){
-        syserror("send");
-    }
-    pthread_mutex_unlock(&lock);
-    return 0;
-}
+// int client_exit(int mySocket){
+
+//     if (send(mySocket, "/quit", strlen("/quit") + 1, 0) <= 0){
+//         syserror("send");
+//     }
+
+//     return 0;
+// }
 
 int client_text(int mySocket, char* msg){
-    pthread_mutex_lock(&lock);
+
     if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
-    pthread_mutex_unlock(&lock);
+
     return 0;
 }

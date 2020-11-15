@@ -21,7 +21,6 @@
 #define MESSAGE 11
 #define QUERY 12
 #define QU_ACK 13
-#define LOGOUT 14
 
 #define MAX_SESSIONS 10
 
@@ -57,6 +56,7 @@ int command_to_message(char* buf, struct message *msg){
         msg->type = LOGIN;
         msg->size = strlen(buf) - strlen("/login "); 
         strcpy(msg->data, buf + strlen("/login "));
+        memset(msg->source, 0, sizeof(msg->source));
 
         if (msg->size == 0){
             return -1;
@@ -80,14 +80,14 @@ int command_to_message(char* buf, struct message *msg){
 
     }else if(strncmp(buf, "/logout", strlen("/logout")) == 0){
 
-        msg->type = LOGOUT;
+        msg->type = EXIT;
         msg->size = 0;
         strcpy(msg->data, "");
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
-        "/logout", msg->size, msg->source, msg->data);
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "/logout", msg->size, msg->data);
 
-        return LOGOUT;
+        return EXIT;
 
     }else if(strncmp(buf, "/joinsession", strlen("/joinsession")) == 0){
 
@@ -100,8 +100,8 @@ int command_to_message(char* buf, struct message *msg){
         }
 
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
-        "/joinsession", msg->size, msg->source, msg->data);
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "/joinsession", msg->size, msg->data);
 
         return JOIN;
 
@@ -111,8 +111,8 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = 0;
         strcpy(msg->data, "");
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
-        "/leavesession", msg->size, msg->source, msg->data);
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "/leavesession", msg->size, msg->data);
 
         return LEAVE_SESS;
 
@@ -127,8 +127,8 @@ int command_to_message(char* buf, struct message *msg){
         }
 
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
-        "/createsession", msg->size, msg->source, msg->data);
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "/createsession", msg->size, msg->data);
 
         return NEW_SESS;
 
@@ -138,29 +138,77 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = 0;
         strcpy(msg->data, "");
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
-        "/list", msg->size, msg->source, msg->data);
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "/list", msg->size, msg->data);
 
         return QUERY;
 
-    }else if(strncmp(buf, "/quit", strlen("/quit")) == 0){
-
-        msg->type = EXIT;
+    }else if(strncmp(buf, "LO_ACK", strlen("LO_ACK")) == 0){
+        msg->type = LO_ACK;
         msg->size = 0;
         strcpy(msg->data, "");
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
-        "/quit", msg->size, msg->source, msg->data);
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "LO_ACK", msg->size, msg->data);
 
-        return EXIT;
+        return LO_ACK;
+    }else if(strncmp(buf, "LO_NAK", strlen("LO_NAK")) == 0){
+        msg->type = LO_NAK;
+        msg->size = strlen(buf) - strlen("LO_NAK: ");    
+        strcpy(msg->data, buf + strlen("LO_NAK: "));
 
-    } else {
+        //leave the USER ID Later
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "LO_NAK", msg->size, msg->data);
+
+        return LO_ACK;
+    }else if(strncmp(buf, "JN_ACK", strlen("JN_ACK")) == 0){
+        msg->type = JN_ACK;
+        msg->size = strlen(buf) - strlen("JN_ACK: ");    
+        strcpy(msg->data, buf + strlen("JN_ACK: "));
+
+        //leave the USER ID Later
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "JN_ACK", msg->size, msg->data);
+
+        return JN_ACK;
+    }else if(strncmp(buf, "JN_NAK", strlen("JN_NAK")) == 0){
+        msg->type = JN_NAK;
+        msg->size = strlen(buf) - strlen("JN_NAK: ");    
+        strcpy(msg->data, buf + strlen("JN_NAK: "));
+
+        //leave the USER ID Later
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "JN_NAK", msg->size, msg->data);
+
+        return JN_NAK;
+    }else if(strncmp(buf, "NS_ACK", strlen("NS_ACK")) == 0){
+        msg->type = NS_ACK;
+        msg->size = strlen(buf) - strlen("NS_ACK: ");    
+        strcpy(msg->data, buf + strlen("NS_ACK: "));
+
+        //leave the USER ID Later
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "NS_ACK", msg->size, msg->data);
+
+        return NS_ACK;
+    }else if(strncmp(buf, "QU_ACK", strlen("QU_ACK")) == 0){
+        msg->type = QU_ACK;
+        msg->size = strlen(buf) - strlen("QU_ACK: ");    
+        strcpy(msg->data, buf + strlen("QU_ACK: "));
+
+        //leave the USER ID Later
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "QU_ACK", msg->size, msg->data);
+
+        return QU_ACK;
+    }else {
         msg->type = MESSAGE;
         msg->size = strlen(buf);
         strcpy(msg->data, buf);
         //leave the USER ID Later
-        printf("Type: %s\nSize: %d\nSource: %s\nData: %s\n",
-        "message", msg->size, msg->source, msg->data);
+        printf("Type: %s\nSize: %d\nData: %s\n",
+        "message", msg->size, msg->data);
         return MESSAGE;
     }
         

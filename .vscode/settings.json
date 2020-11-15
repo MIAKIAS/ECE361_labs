@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "client.h": "c"
+        "client.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }
