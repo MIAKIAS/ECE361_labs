@@ -371,7 +371,7 @@ MAIN_LOOP:
                 curr_client = &clients[i];
 
                 char ack[255] = {0};
-                message_to_command("LO_ACK", ack, clients[i].ID);
+                message_to_command("LO_ACK", ack, "N/A");
                 if(send(clients[i].client_socket, ack, strlen(ack) + 1, 0) < 0){
                     syserror("send");
                 }
@@ -602,8 +602,6 @@ void create_session(struct client *curr_client, char *session_id, int data_size)
 
     if(data_size <= 0){
         strcpy(buf, "JN_NAK: ");
-        strcat(buf, session_id);
-        strcat(buf, ", ");
         strcat(buf, "Session id not given");
 
         char ack[255] = {0};

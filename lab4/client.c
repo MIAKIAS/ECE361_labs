@@ -301,8 +301,11 @@ int client_login(char* buf){
     int type = command_to_message(confirm, &msg_recv);
     
     if (type == LO_ACK){
+        struct message temp;
+        command_to_message(msg, &temp);
+        char *comma = strchr(temp.data, ',');
+        strncpy(curr_client_id, temp.data, comma - (char*)temp.data);
 
-        strcpy(curr_client_id, msg_recv.source);
         return mySocket;
 
     } else{

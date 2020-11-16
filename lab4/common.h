@@ -72,17 +72,17 @@ bool message_to_command(char* buf, char* msg, char* curr_client_id){
         sprintf(msg, "%d:%d:%s:%s", NEW_SESS, strlen(buf) - strlen("/createsession "), curr_client_id, buf + strlen("/createsession "));
     } else if (strncmp(buf, "/list", strlen("/list")) == 0){
         sprintf(msg, "%d:%d:%s:%s", QUERY, 0, curr_client_id, "");
-    } else if (strncmp(buf, "LO_ACK", strlen("LO_ACK")) == 0){
+    } else if (strncmp(buf, "LO_ACK", strlen("LO_ACK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", LO_ACK, 0, curr_client_id, "");
-    } else if (strncmp(buf, "LO_NAK", strlen("LO_NAK")) == 0){
+    } else if (strncmp(buf, "LO_NAK", strlen("LO_NAK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", LO_NAK, strlen(buf) - strlen("LO_NAK: "), curr_client_id, buf + strlen("LO_NAK: "));
-    } else if (strncmp(buf, "JN_ACK", strlen("JN_ACK")) == 0){
+    } else if (strncmp(buf, "JN_ACK", strlen("JN_ACK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", JN_ACK, strlen(buf) - strlen("JN_ACK: "), curr_client_id, buf + strlen("JN_ACK: "));
-    } else if (strncmp(buf, "JN_NAK", strlen("JN_NAK")) == 0){
+    } else if (strncmp(buf, "JN_NAK", strlen("JN_NAK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", JN_NAK, strlen(buf) - strlen("JN_NAK: "), curr_client_id, buf + strlen("JN_NAK: "));
-    } else if (strncmp(buf, "NS_ACK", strlen("NS_ACK")) == 0){
+    } else if (strncmp(buf, "NS_ACK", strlen("NS_ACK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", NS_ACK, strlen(buf) - strlen("NS_ACK: "), curr_client_id, buf + strlen("NS_ACK: "));
-    } else if (strncmp(buf, "QU_ACK", strlen("QU_ACK")) == 0){
+    } else if (strncmp(buf, "QU_ACK", strlen("QU_ACK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", QU_ACK, strlen(buf) - strlen("QU_ACK: "), curr_client_id, buf + strlen("QU_ACK: "));
     } else {
         sprintf(msg, "%d:%d:%s:%s", MESSAGE, strlen(buf), curr_client_id, buf);
