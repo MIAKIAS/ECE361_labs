@@ -73,6 +73,7 @@ int main(){
             pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             }
             pthread_mutex_unlock(&lock);
@@ -93,6 +94,7 @@ int main(){
             pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             }
             pthread_mutex_unlock(&lock);
@@ -103,9 +105,11 @@ int main(){
             pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             } else if (isInSession = false){
                 printf("You Have To Join a Session First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             }
             pthread_mutex_unlock(&lock);
@@ -121,6 +125,7 @@ int main(){
             pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             }
             pthread_mutex_unlock(&lock);
@@ -132,6 +137,7 @@ int main(){
             pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             }
             pthread_mutex_unlock(&lock);
@@ -155,9 +161,11 @@ int main(){
             pthread_mutex_lock(&lock);
             if (isLogIn == false){
                 printf("You Have To Log In First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             } else if (isInSession = false){
                 printf("You Have To Join a Session First, Please Try Again...\n");
+                pthread_mutex_unlock(&lock);
                 continue;
             }
             pthread_mutex_unlock(&lock);
@@ -192,7 +200,6 @@ void* keep_receiving(void* mySocket){
 
         struct message msg_struct;
         int type = command_to_message(msg, &msg_struct);
-        strcpy(msg_struct.source, curr_client_id);
         //printf("Source: %s\n", msg_struct.source);
 
         isLoAckRecv = false;
@@ -201,22 +208,29 @@ void* keep_receiving(void* mySocket){
         isNsAckRecv = false;
 
         if (type == JN_ACK){
+            strcpy(msg_struct.source, "SERVER");
             isJnAckRecv = true;
             isInSession = true;
             printf("Successfully Joined Session: %s\n", msg_struct.data);
         } else if (type == JN_NAK){
+            strcpy(msg_struct.source, "SERVER");
             isJnAckRecv = true;
             isInSession = false;
             printf("Failed To Join Session: %s\n", msg_struct.data);
         } else if (type == NS_ACK){
+            strcpy(msg_struct.source, "SERVER");
             isNsAckRecv = true;
             isInSession = true;
             printf("Successfully Created and Joined Session: %s\n", msg_struct.data);
         } else if (type == QU_ACK){
+            strcpy(msg_struct.source, "SERVER");
             isQuAckRecv = true;
             printf("%s\n", msg_struct.data);
         } else{
-            printf("%s: %s\n", msg_struct.source, msg_struct.data);
+            char* colon = strchr(msg_struct.data, ':');
+            memset(msg_struct.source, 0, colon - (char*)msg_struct.data + 1);
+            strncpy(msg_struct.source, msg_struct.data, colon - (char*)msg_struct.data);
+            printf("%s\n", msg_struct.data);
         } 
         pthread_mutex_unlock(&lock);
     }
@@ -373,7 +387,11 @@ int client_list(int mySocket){
 // }
 
 int client_text(int mySocket, char* msg){
-    if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
+    char temp[255] = {0};
+    strcpy(temp, curr_client_id);
+    strcat(temp, ": ");
+    strcat(temp, msg);
+    if (send(mySocket, temp, strlen(temp) + 1, 0) <= 0){
         syserror("send");
     }
 

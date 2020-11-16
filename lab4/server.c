@@ -40,7 +40,6 @@ struct session_queue {
     struct session_info *head;
 };
 
-//struct session_info sessions[MAX_SESSIONS];
 struct session_queue session_q;
 
 
@@ -52,13 +51,6 @@ struct client clients[MAX_CLIENTS_NUMBER] = {
     {.ID = "test_id3", .password = "password3", .active = false, 
         .client_socket = -1, .in_session = false, .session_id = NULL}
 };
-//struct client_list clients;
-//clients.head = NULL;
-
-//get session id 
-//char *sessions[MAX_SESSIONS];
-
-//struct client_list session_clients[MAX_SESSIONS];
 
 int client_count = 0;
 int session_count = 0;
@@ -155,8 +147,6 @@ void add_client_to_session(char *id, struct client_index_list *list){
     temp->next = malloc(sizeof(struct client_index));
     temp->next->index = index;
     temp->next->next = NULL;
-    // temp->index = index;
-    // temp->next = NULL;
 }
 
 void delete_client_in_session(char *id, struct client_index_list *list){
@@ -211,30 +201,6 @@ void list_users(char* buf, int client_socket){
             strcat(buf, "\n");
         }
     }
-    
-
-    // if(send(client_socket, "QU_ACK: Online users:\n", strlen("QU_ACK: Online users:\n"), 0) < 0){
-    //     syserror("send");
-    // }
-    // //printf("Online users:\n");
-
-    // for(int i = 0; i < MAX_CLIENTS_NUMBER; ++i){
-    //     if(clients[i].active){
-    //         //printf("%s\n", clients[i].ID);
-    //         char buf[255] = {0};
-    //         strcpy(buf, clients[i].ID);
-
-    //         if(clients[i].in_session){
-    //             strcat(buf, " , in session: ");
-    //             strcat(buf, clients[i].session_id);
-    //         }
-    //         strcat(buf, "\n");
-            
-    //         if(send(client_socket, buf, strlen(buf), 0) < 0){
-    //             syserror("send");
-    //         }
-    //     }
-    // }
 }
 
 //send list of sessions
@@ -254,25 +220,6 @@ void list_sessions(char* buf, int client_socket){
     if(send(client_socket, buf, strlen(buf), 0) < 0){
         syserror("send");
     }
-    // if(send(client_socket, "Available sessions:\n", strlen("Available sessions:\n"), 0) < 0){
-    //     syserror("send");
-    // }
-
-    // //printf("Available sessions:\n");
-
-    // struct session_info *curr_session = session_q.head;
-
-    // while(curr_session != NULL){
-    //     //printf("%s\n", curr_session->session_id);
-    //     char session_packet[255] = {0};
-    //     strcpy(session_packet, curr_session->session_id);
-    //     strcat(session_packet, "\n");
-
-    //     if(send(client_socket, session_packet, strlen(session_packet), 0) < 0){
-    //         syserror("send");
-    //     }
-    //     curr_session = curr_session->next;
-    // }
 }
 
 
@@ -295,7 +242,6 @@ int main(int argc, char** argv){
     if (argc != 2) usage(); 
 
     char* port = argv[1];
-    //int port = atoi(argv[1]);
 
     //create the address information
     struct addrinfo hints;
@@ -353,14 +299,6 @@ int main(int argc, char** argv){
         pthread_t *new_thread = &threads_client[thread_index++];
         pthread_create(new_thread, NULL, (void*)thread_request, new_socket_ptr);
 
-        //check if new user socket already in user list
-        //add_to_client_list(new_socket);
-
-        //request_handler();
-
-        // if(client_count <= 0){
-        //     break;
-        // }
     }
 
     close(mySocket);
@@ -520,8 +458,6 @@ MAIN_LOOP:
     }
 
     else if(type == MESSAGE){
-        printf("Should multicast this message\n");
-
         if(curr_client->in_session){
             multicast_message(curr_client, msg.data);
         }else{
@@ -531,7 +467,6 @@ MAIN_LOOP:
         goto MAIN_LOOP;
     }
 OUT_LOOP: 
-    printf("out of loop\n");
     close(*client_socket);
     free(client_socket);
     return NULL;
@@ -682,6 +617,8 @@ void create_session(struct client *curr_client, char *session_id, int data_size)
 }
 
 void multicast_message(struct client *curr_client, char *message_data){
+    printf("Multicasting message: %s\n", message_data);
+
     pthread_mutex_lock(&session_queue_lock);
     struct session_info *session_to_send = find_session(curr_client->session_id);
 

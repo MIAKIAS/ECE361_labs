@@ -34,4 +34,3 @@ struct client_index {
 struct client_index_list {
     struct client_index *head;
 };
-
