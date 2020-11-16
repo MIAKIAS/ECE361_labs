@@ -19,17 +19,13 @@
 void* keep_receiving(void* mySocket);
 int client_login(char* buf);
 int client_logout(int mySocket);
-int client_join_session(int mySocket, char* msg);
-int client_create_session(int mySocket, char* msg);
+int client_join_session(int mySocket, char* buf);
+int client_create_session(int mySocket, char* buf);
 int client_leave_session(int mySocket);
 int client_list(int mySocket);
-int client_text(int mySocket, char* msg);
+int client_text(int mySocket, char* buf);
 int client_exit(int mySocket);
 
-bool isLoAckRecv = false;
-bool isJnAckRecv = false;
-bool isQuAckRecv = false;
-bool isNsAckRecv = false;
 bool isInSession = false;
 bool isLogIn = false;
 char curr_client_id[1024] = {0};
@@ -49,8 +45,6 @@ int main(){
 
         fgets(command, 1024, stdin);
         command[strlen(command) - 1] = 0; //fgets counts '\n'
-
-        //printf("Command Typed: %s\n", command);
 
         if (strncmp(command, "/login", strlen("/login")) == 0){
 
@@ -80,10 +74,6 @@ int main(){
             client_logout(mySocket);
 
             pthread_mutex_lock(&lock);
-            isLoAckRecv = false;
-            isJnAckRecv = false;
-            isQuAckRecv = false;
-            isNsAckRecv = false;
             isInSession = false;
             isLogIn = false;
             memset(curr_client_id, 0, sizeof(curr_client_id));
@@ -202,35 +192,24 @@ void* keep_receiving(void* mySocket){
         int type = command_to_message(msg, &msg_struct);
         //printf("Source: %s\n", msg_struct.source);
 
-        isLoAckRecv = false;
-        isJnAckRecv = false;
-        isQuAckRecv = false;
-        isNsAckRecv = false;
 
         if (type == JN_ACK){
             strcpy(msg_struct.source, "SERVER");
-            isJnAckRecv = true;
             isInSession = true;
             printf("Successfully Joined Session: %s\n", msg_struct.data);
         } else if (type == JN_NAK){
             strcpy(msg_struct.source, "SERVER");
-            isJnAckRecv = true;
             isInSession = false;
             printf("Failed To Join Session: %s\n", msg_struct.data);
         } else if (type == NS_ACK){
             strcpy(msg_struct.source, "SERVER");
-            isNsAckRecv = true;
             isInSession = true;
             printf("Successfully Created and Joined Session: %s\n", msg_struct.data);
         } else if (type == QU_ACK){
             strcpy(msg_struct.source, "SERVER");
-            isQuAckRecv = true;
             printf("%s\n", msg_struct.data);
         } else{
-            char* colon = strchr(msg_struct.data, ':');
-            memset(msg_struct.source, 0, colon - (char*)msg_struct.data + 1);
-            strncpy(msg_struct.source, msg_struct.data, colon - (char*)msg_struct.data);
-            printf("%s\n", msg_struct.data);
+            printf("%s: %s\n", msg_struct.source, msg_struct.data);
         } 
         pthread_mutex_unlock(&lock);
     }
@@ -240,10 +219,17 @@ int client_login(char* buf){
     char serverAddr[255] = {0};
     char port[255] = {0};
 
+    char msg[255] = {0};
+    if (message_to_command(buf, msg, "N/A") == false){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
+    }
+
     //using space to distinguish ip and port
     int spaceCount = 0;
     char *thirdSpace, *fourthpace;
-    for (char* i = buf; *i != '\0'; i++){
+    char* i;
+    for (i = buf; *i != '\0'; i++){
         if (*i == ' '){
             spaceCount++;
             if (spaceCount == 3){
@@ -253,6 +239,10 @@ int client_login(char* buf){
                 break;
             }
         } 
+    }
+    if (*i == '\0'){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
     }
 
     strncpy(serverAddr, thirdSpace + 1, fourthpace - thirdSpace - 1);
@@ -296,7 +286,7 @@ int client_login(char* buf){
 
     freeaddrinfo(res);
 
-    if (send(mySocket, buf, strlen(buf) + 1, 0) <= 0){
+    if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
 
@@ -307,50 +297,58 @@ int client_login(char* buf){
     }
 
     //printf("Message Received: %s\n", confirm);
-
+    struct message msg_recv;
+    int type = command_to_message(confirm, &msg_recv);
     
-    if (strncmp(confirm, "LO_ACK", strlen("LO_ACK")) == 0){
-        struct message msg;
-        msg.type = -1;
-        msg.size = -1;
-        strcpy(msg.source, "");
-        strcpy(msg.data, "");
-        int type = command_to_message(buf, &msg);
-        char *comma = strchr(msg.data, ' ');
-        strncpy(curr_client_id, msg.data, comma - (char*)msg.data);
+    if (type == LO_ACK){
 
+        strcpy(curr_client_id, msg_recv.source);
         return mySocket;
+
     } else{
-        struct message msg;
-        msg.type = -1;
-        msg.size = -1;
-        strcpy(msg.source, "");
-        strcpy(msg.data, "");
-        int type = command_to_message(confirm, &msg);
-        printf("Log In Failed: %s\n", msg.data);
+
+        printf("Log In Failed: %s\n", msg_recv.data);
         return -1;
+
     }
     /*===========================================================*/
 }
 
 int client_logout(int mySocket){
-    if (send(mySocket, "/logout", strlen("/logout") + 1, 0) <= 0){
+    char msg[255] = {0};
+    if (message_to_command("/logout", msg, curr_client_id) == false){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
+    }
+
+    if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
     return 0;
 }
 
-int client_join_session(int mySocket, char* msg){
+int client_join_session(int mySocket, char* buf){
+    char msg[255] = {0};
+    if (message_to_command(buf, msg, curr_client_id) == false){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
+    }
+
     if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
 
-    while (!isJnAckRecv){}
+    //while (!isJnAckRecv){}
 
     return 0;
 }
 
-int client_create_session(int mySocket, char* msg){
+int client_create_session(int mySocket, char* buf){
+    char msg[255] = {0};
+    if (message_to_command(buf, msg, curr_client_id) == false){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
+    }
 
     if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
@@ -360,8 +358,13 @@ int client_create_session(int mySocket, char* msg){
 }
 
 int client_leave_session(int mySocket){
+    char msg[255] = {0};
+    if (message_to_command("/leavesession", msg, curr_client_id) == false){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
+    }
 
-    if (send(mySocket, "/leavesession", strlen("leavesession") + 1, 0) <= 0){
+    if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
 
@@ -369,8 +372,13 @@ int client_leave_session(int mySocket){
 }
 
 int client_list(int mySocket){
+    char msg[255] = {0};
+    if (message_to_command("/list", msg, curr_client_id) == false){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
+    }
 
-    if (send(mySocket, "/list", strlen("/list") + 1, 0) <= 0){
+    if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
 
@@ -386,12 +394,14 @@ int client_list(int mySocket){
 //     return 0;
 // }
 
-int client_text(int mySocket, char* msg){
-    char temp[255] = {0};
-    strcpy(temp, curr_client_id);
-    strcat(temp, ": ");
-    strcat(temp, msg);
-    if (send(mySocket, temp, strlen(temp) + 1, 0) <= 0){
+int client_text(int mySocket, char* buf){
+    char msg[255] = {0};
+    if (message_to_command(buf, msg, curr_client_id) == false){
+        printf("Wrong Input, Please try again...\n");
+        return -1;
+    }
+
+    if (send(mySocket, msg, strlen(msg) + 1, 0) <= 0){
         syserror("send");
     }
 

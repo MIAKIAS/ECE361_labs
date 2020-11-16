@@ -217,7 +217,9 @@ void list_sessions(char* buf, int client_socket){
         curr_session = curr_session->next;
     }
 
-    if(send(client_socket, buf, strlen(buf), 0) < 0){
+    char message[255] = {0};
+    message_to_command(buf, message, "N/A");
+    if(send(client_socket, message, strlen(message), 0) < 0){
         syserror("send");
     }
 }
@@ -324,16 +326,17 @@ MAIN_LOOP:
     }
 
     type = command_to_message(buf, &msg);
-    if (curr_client != NULL){
-        strcpy(msg.source, curr_client->ID);   
-        //printf("Source: %s\n", msg.source);
-    } 
+    // if (curr_client != NULL){
+    //     strcpy(msg.source, curr_client->ID);   
+    //     //printf("Source: %s\n", msg.source);
+    // } 
 
-    //printf("Command Received: %s\n", buf);
+    
 
     if(type == LOGIN){
         //handle login request
-        char *comma = strchr(msg.data, ' ');
+        //printf("%s\n", msg.data);
+        char *comma = strchr(msg.data, ',');
         char *curr_client_id = malloc(sizeof(char) * (comma - (char*)msg.data + 1));
         memset(curr_client_id, 0, sizeof(char) * (comma - (char*)msg.data + 1));
         strncpy(curr_client_id, msg.data, comma - (char*)msg.data);
@@ -341,8 +344,7 @@ MAIN_LOOP:
         int len = comma - (char*)msg.data;
         char *curr_password = malloc(sizeof(char) * (strlen(msg.data) - len));
         memset(curr_password, 0, sizeof(char) * (strlen(msg.data) - len));
-        char *comma_next = strchr(comma + 1, ' ');
-        strncpy(curr_password, comma + 1, comma_next - comma - 1);
+        strncpy(curr_password, comma + 1, strlen(comma + 1));
 
         int i;
         for(i = 0; i < MAX_CLIENTS_NUMBER; ++i){
@@ -352,8 +354,9 @@ MAIN_LOOP:
 
                 if(clients[i].active){
                     pthread_mutex_unlock(&client_list_lock);
-                    if(send(*client_socket, "LO_NAK: the client has already logged in", 
-                            strlen("LO_NAK: the client has already logged in"), 0) < 0){
+                    char ack[255] = {0};
+                    message_to_command("LO_NAK: the client has already logged in", ack, "N/A");
+                    if(send(*client_socket, ack, strlen(ack) + 1, 0) < 0){
                         syserror("send");
                     }
 
@@ -367,9 +370,12 @@ MAIN_LOOP:
                 clients[i].client_socket = *client_socket;
                 curr_client = &clients[i];
 
-                if(send(clients[i].client_socket, "LO_ACK", strlen("LO_ACK"), 0) < 0){
+                char ack[255] = {0};
+                message_to_command("LO_ACK", ack, clients[i].ID);
+                if(send(clients[i].client_socket, ack, strlen(ack) + 1, 0) < 0){
                     syserror("send");
                 }
+                printf("Client %s logged in.\n", clients[i].ID);
 
                 logged_in = true;
                 
@@ -382,8 +388,9 @@ MAIN_LOOP:
         }
 
         if(i == MAX_CLIENTS_NUMBER){
-            if(send(*client_socket, "LO_NAK: wrong id or wrong password", 
-                    strlen("LO_NAK: wrong id or wrong password"), 0) < 0){
+            char ack[255] = {0};
+            message_to_command("LO_NAK: wrong id or wrong password", ack, "N/A");
+            if(send(*client_socket, ack, strlen(ack) + 1, 0) < 0){
                 syserror("send");
             }
 
@@ -426,7 +433,9 @@ MAIN_LOOP:
 
     else if(type == LEAVE_SESS){
         if(!curr_client->in_session){
-            if(send(curr_client->client_socket, "Not in any session", strlen("Not in any session"), 0) < 0){
+            char ack[255] = {0};
+            message_to_command("Not in any session", ack, "Error");
+            if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
                 syserror("send");
             }
             goto MAIN_LOOP;
@@ -475,12 +484,16 @@ OUT_LOOP:
 void join_session(struct client *curr_client, int client_socket, char *session_id, int data_size, int type){
     char buf[255];
 
-    if(data_size < 0){
+    if(data_size <= 0){
         if (type == JOIN){
             strcpy(buf, "JN_NAK: ");
+            // strcat(buf, session_id);
+            // strcat(buf, ", ");
             strcat(buf, "Session id not given");
 
-            if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+            char ack[255] = {0};
+            message_to_command(buf, ack, "N/A");
+            if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
                 syserror("send");
             }
         }
@@ -491,9 +504,13 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
     if(curr_client->in_session){
         if (type == JOIN){
             strcpy(buf, "JN_NAK: ");
+            strcat(buf, session_id);
+            strcat(buf, ", ");
             strcat(buf, "Current client already in a session");
 
-            if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+            char ack[255] = {0};
+            message_to_command(buf, ack, "N/A");
+            if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
                 syserror("send");
             }
         }
@@ -510,9 +527,13 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
     if(session_to_join == NULL){
         //response JN_NAK
         strcpy(buf, "JN_NAK: ");
+        strcat(buf, session_id);
+        strcat(buf, ", ");
         strcat(buf, "wrong session id");
 
-        if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+        char ack[255] = {0};
+        message_to_command(buf, ack, "N/A");
+        if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
             syserror("send");
         }
     }else{
@@ -537,9 +558,12 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
             strcpy(buf, "JN_ACK: ");
             strcat(buf, session_id);
 
-            if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+            char ack[255] = {0};
+            message_to_command(buf, ack, "N/A");
+            if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
                 syserror("send");
             }
+            printf("Client %s joined session %s\n", curr_client->ID, session_id);
         }        
     }
 }
@@ -547,6 +571,8 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
 void leave_session(struct client *curr_client){
 
     pthread_mutex_lock(&session_queue_lock);
+
+    printf("Client %s left session %s\n", curr_client->ID, curr_client->session_id);
 
     struct session_info *temp_session = find_session(curr_client->session_id);
     //delete current client in the session
@@ -567,18 +593,22 @@ void leave_session(struct client *curr_client){
     free(curr_client->session_id);
     curr_client->in_session = false;
     //printf("here3\n");
-
+    
     //pthread_mutex_unlock(&client_list_lock);
 }
 
 void create_session(struct client *curr_client, char *session_id, int data_size){
     char buf[255];
 
-    if(data_size < 0){
+    if(data_size <= 0){
         strcpy(buf, "JN_NAK: ");
+        strcat(buf, session_id);
+        strcat(buf, ", ");
         strcat(buf, "Session id not given");
 
-        if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+        char ack[255] = {0};
+        message_to_command(buf, ack, "N/A");
+        if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
             syserror("send");
         }
         return;
@@ -586,9 +616,13 @@ void create_session(struct client *curr_client, char *session_id, int data_size)
     
     if(curr_client->in_session){
         strcpy(buf, "JN_NAK: ");
+        strcat(buf, session_id);
+        strcat(buf, ", ");
         strcat(buf, "Current client already in a session");
 
-        if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+        char ack[255] = {0};
+        message_to_command(buf, ack, "N/A");
+        if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
             syserror("send");
         }
     
@@ -611,23 +645,29 @@ void create_session(struct client *curr_client, char *session_id, int data_size)
     
     strcpy(buf, "NS_ACK: ");
     strcat(buf, session_id);
-    if(send(curr_client->client_socket, buf, strlen(buf), 0) < 0){
+    char ack[255] = {0};
+    message_to_command(buf, ack, "N/A");
+    if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
         syserror("send");
     }
+    printf("Client %s created and joined session %s\n", curr_client->ID, session_id);
 }
 
 void multicast_message(struct client *curr_client, char *message_data){
     printf("Multicasting message: %s\n", message_data);
 
     pthread_mutex_lock(&session_queue_lock);
+    //printf("enter lock\n");
     struct session_info *session_to_send = find_session(curr_client->session_id);
 
     struct client_index *temp = session_to_send->list.head;
 
+    char chat[1024] = {0};
+    message_to_command(message_data, chat, curr_client->ID);
     while(temp != NULL){
         //printf("%d\n", temp->index);
-
-        if(send(clients[temp->index].client_socket, message_data, strlen(message_data), 0) < 0){
+        
+        if(send(clients[temp->index].client_socket, chat, strlen(chat), 0) < 0){
             syserror("send");
         }
         temp = temp->next;
