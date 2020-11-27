@@ -1,0 +1,19 @@
+MESSAGE:
+If in one session, just send text message:
+/<text message>
+If in multiple sessions, need specify session id:
+/<session ID> <text message> 
+
+INVITE:
+/invite <client ID> <session ID>
+If client id and session id are valid, send invitation to the client; if replied with “Yes”, add the client to session list and add the session to the structure of the client.
+
+LEAVE_SESS:
+If joined one session:
+/leavesession
+
+If joined multiple sessions:
+/leavesession <session ID>
+
+
+Disconnect interval = 30 sec
