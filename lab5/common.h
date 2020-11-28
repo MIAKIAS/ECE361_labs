@@ -24,6 +24,8 @@
 #define QUERY 12
 #define QU_ACK 13
 #define INVITE 14
+#define INVITE_ACK 15
+#define INVITE_NAK 16
 
 #define MAX_SESSIONS 10
 
@@ -54,6 +56,7 @@ void syserror(char* name){
     exit(1);
 }
 
+//stransfer serialized message to struct message
 bool message_to_command(char* buf, char* msg, char* curr_client_id){
     memset(msg, 0, sizeof(msg));
     if (strncmp(buf, "/login", strlen("/login")) == 0){
@@ -106,6 +109,7 @@ bool message_to_command(char* buf, char* msg, char* curr_client_id){
     return true;
 }
 
+//transfer input string to serialized message according to the protocol
 int command_to_message(char* buf, struct message *msg){
     memset(msg->data, 0, sizeof(msg->data));
     memset(msg->source, 0, sizeof(msg->source));
@@ -241,7 +245,7 @@ int command_to_message(char* buf, struct message *msg){
         strcpy(msg->data, colon);
         printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
         return INVITE;
-    } else{//%d:%d:%s:%s:%s
+    } else{
         msg->type = MESSAGE;
         char* colon = strchr(buf, ':');
         colon = strchr(colon + 1, ':');

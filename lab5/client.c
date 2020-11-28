@@ -64,6 +64,7 @@ int main(){
         fgets(command, 1024, stdin);
         command[strlen(command) - 1] = 0; //fgets counts '\n'
 
+        //check different user input
         if (strncmp(command, "/login", strlen("/login")) == 0){
 
             if (isLogIn){
@@ -211,6 +212,7 @@ void* keep_receiving(void* mySocket){
     int* temp = (int*)mySocket;
     while (true){
         
+        //if logged out, just return
         if (isLogIn == false){
             return NULL;
         }
@@ -246,6 +248,24 @@ void* keep_receiving(void* mySocket){
         } else if (type == QU_ACK){
             strcpy(msg_struct.source, "SERVER");
             printf("%s\n", msg_struct.data);
+        } else if (type == INVITE){
+            printf("User: %s invites you to join the session: %s\n", msg_struct.data, msg_struct.session);
+            printf("Do you want to join? (Yes/No)\n");
+            char answer[10] = {0};
+RETRY:      memset(answer, 0, strlen(answer) + 1);
+            fgets(answer, 1024, stdin);
+            answer[strlen(answer) - 1] = 0;
+            if (strcmp(answer, "Yes") == 0){ //directly join session from client side using "/joinsession"
+                char command[255] = {0};
+                strcpy(command, "/joinsession ");
+                strcat(command, msg_struct.session);
+                client_join_session(*temp, command);
+            } else if (strcmp(answer, "No") == 0){
+                printf("Refuse the invitation from user: %s\n", msg_struct.data);
+            } else{
+                printf("Invalid Input, Please Try Again...\n");
+                goto RETRY;
+            }
         } else{
             printf("From session [%s]:\n%s: %s\n", msg_struct.session, msg_struct.source, msg_struct.data);
         } 
@@ -434,7 +454,7 @@ int client_list(int mySocket){
     return 0;
 }
 
-int client_invite(int mySocket, char* buf){// /invite session user
+int client_invite(int mySocket, char* buf){// format: /invite <session> <user>
 
     char msg[255] = {0};
     if (message_to_command(buf, msg, curr_client_id) == false){
@@ -466,11 +486,12 @@ int client_invite(int mySocket, char* buf){// /invite session user
 int client_text(int mySocket, char* buf){
     char session_name[1024] = {0};
     if (session_list->head != NULL && session_list->head->next == NULL){
+        //if only one available session
         strcpy(session_name, session_list->head->session_name);
     } else{
         bool isInList = false;
         printf("Which session do you want to send to?\n");
-        do{
+        do{ //prompt the user to choose the destination session
             memset(session_name, 0, strlen(session_name));
             list_print();
             fgets(session_name, 1024, stdin);
@@ -546,6 +567,7 @@ bool list_delete(char* name){
     return true;
 }
 
+//find whether there is an element with specific name in the list
 bool list_find(char* name){
     struct session* temp = session_list->head;
     while (temp != NULL){
@@ -557,6 +579,7 @@ bool list_find(char* name){
     return false;
 }
 
+//print the whole list
 void list_print(){
     struct session* temp = session_list->head;
     printf("Available sessions: \n");

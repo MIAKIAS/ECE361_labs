@@ -320,9 +320,11 @@ void list_users(char* buf, int client_socket){
                 //strcat(buf, clients[i].session_id);
 
                 struct list_entry *temp_entry = clients[i].s_list.head;
+                //append all sessions corresponding to the user to the back 
                 while(temp_entry != NULL){
+                    strcat(buf, "[");
                     strcat(buf, temp_entry->session_id);
-                    strcat(buf, "\n");
+                    strcat(buf, "] ");
                     temp_entry = temp_entry->next;
                 }
             }
@@ -337,7 +339,8 @@ void list_sessions(char* buf, int client_socket){
     strcat(buf, "\nAvailable sessions:\n");
 
     struct session_info *curr_session = session_q.head;
-
+    
+    //append all sessions
     while(curr_session != NULL){
         strcat(buf, curr_session->session_id);
         strcat(buf, "\n");
