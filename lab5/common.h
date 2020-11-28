@@ -147,12 +147,12 @@ int command_to_message(char* buf, struct message *msg){
         return JOIN;
     } else if (strncmp(buf, "8:", strlen("8:")) == 0){
         msg->type = LEAVE_SESS;
-        msg->size = 0;
         char* colon = strchr(buf, ':');
         colon = strchr(colon + 1, ':');
         char* data_begin = strchr(colon + 1, ':');
         strncpy(msg->source, colon + 1, data_begin - colon - 1);
-        strcpy(msg->data, "");
+        msg->size = strlen(data_begin + 1);
+        strcpy(msg->data, data_begin + 1);
         return LEAVE_SESS;
     } else if (strncmp(buf, "9:", strlen("9:")) == 0){
         msg->type = NEW_SESS;

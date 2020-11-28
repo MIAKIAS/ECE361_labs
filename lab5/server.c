@@ -594,7 +594,7 @@ EXIT_HANDLER:
             pthread_mutex_unlock(&client_list_lock);
         }else{
             pthread_mutex_lock(&client_list_lock);
-            leave_session(curr_client, msg.data);
+            leave_session(curr_client, msg.session);
             pthread_mutex_unlock(&client_list_lock);
         }
 
