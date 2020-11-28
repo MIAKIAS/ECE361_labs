@@ -623,6 +623,7 @@ EXIT_HANDLER:
     else if(type == MESSAGE){
         if(curr_client->in_session){
             if(curr_client->s_list.head->next == NULL){
+                //直接multicast buf里的信息， 然后struct里面专门存了个session的名字，直接发给那个session就好
                 multicast_message(curr_client, msg.data, curr_client->s_list.head->session_id);
             }else{
                 char *session_id;

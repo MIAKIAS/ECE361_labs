@@ -34,6 +34,7 @@ struct message {
     unsigned int size;
     unsigned char source[MAX_NAME]; 
     unsigned char data[MAX_DATA];
+    unsigned char session[MAX_NAME];
 };
 
 int login();
@@ -69,11 +70,23 @@ bool message_to_command(char* buf, char* msg, char* curr_client_id){
     } else if (strncmp(buf, "/joinsession", strlen("/joinsession")) == 0){
         sprintf(msg, "%d:%d:%s:%s", JOIN, strlen(buf) - strlen("/joinsession "), curr_client_id, buf + strlen("/joinsession "));
     } else if (strncmp(buf, "/leavesession", strlen("/leavesession")) == 0){
-        sprintf(msg, "%d:%d:%s:%s", LEAVE_SESS, 0, curr_client_id, "");
+        if (strlen(buf) - strlen("/leavesession ") <= 0){
+            printf("Please indicate which session you want to leave...\n");
+            return false;
+        }
+        sprintf(msg, "%d:%d:%s:%s", LEAVE_SESS, strlen(buf) - strlen("/leavesession "), curr_client_id, buf + strlen("/leavesession "));
     } else if (strncmp(buf, "/createsession", strlen("/createsession")) == 0){
         sprintf(msg, "%d:%d:%s:%s", NEW_SESS, strlen(buf) - strlen("/createsession "), curr_client_id, buf + strlen("/createsession "));
     } else if (strncmp(buf, "/list", strlen("/list")) == 0){
         sprintf(msg, "%d:%d:%s:%s", QUERY, 0, curr_client_id, "");
+    } else if (strncmp(buf, "/invite", strlen("/invite")) == 0){
+        char session[255] = {0};
+        char user[255] = {0};
+        char* temp = strchr(buf + strlen("/invite "), ' ');
+        if (temp == NULL) return false;
+        strncpy(session, buf + strlen("/invite "), temp - (buf + strlen("/invite ")));
+        strcpy(user, temp + 1);
+        sprintf(msg, "%d:%d:%s:%s:%s", INVITE, strlen(session) + strlen(user), curr_client_id, session, user);
     } else if (strncmp(buf, "LO_ACK", strlen("LO_ACK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", LO_ACK, 0, curr_client_id, "");
     } else if (strncmp(buf, "LO_NAK", strlen("LO_NAK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
@@ -87,15 +100,16 @@ bool message_to_command(char* buf, char* msg, char* curr_client_id){
     } else if (strncmp(buf, "QU_ACK", strlen("QU_ACK")) == 0 && strcmp(curr_client_id, "N/A") == 0){
         sprintf(msg, "%d:%d:%s:%s", QU_ACK, strlen(buf) - strlen("QU_ACK: "), curr_client_id, buf + strlen("QU_ACK: "));
     } else {
-        sprintf(msg, "%d:%d:%s:%s", MESSAGE, strlen(buf), curr_client_id, buf);
+        sprintf(msg, "%d:%d:%s:%s", MESSAGE, strlen(buf) - 1, curr_client_id, buf);
     }
-    //printf("Seriablization: %s\n", msg);
+    printf("Seriablization: %s\n", msg);
     return true;
 }
 
 int command_to_message(char* buf, struct message *msg){
     memset(msg->data, 0, sizeof(msg->data));
     memset(msg->source, 0, sizeof(msg->source));
+    memset(msg->session, 0, sizeof(msg->session));
     msg->type = -1;
     msg->size = 0;
     if (strncmp(buf, "1:", strlen("1:")) == 0){ //LOGIN
@@ -214,15 +228,31 @@ int command_to_message(char* buf, struct message *msg){
         msg->size = strlen(data_begin);
         strcpy(msg->data, data_begin);
         return QU_ACK;
-    } else{
+    } else if (strncmp(buf, "14:", strlen("14:")) == 0){
+        msg->type = INVITE;
+        char* colon = strchr(buf, ':');
+        colon = strchr(colon + 1, ':');
+        char* name_begin = strchr(colon + 1, ':');
+        strncpy(msg->source, colon + 1, name_begin - colon - 1);
+        colon = strchr(name_begin + 1, ':');
+        strncpy(msg->session, name_begin + 1, colon - name_begin - 1);
+        colon++;
+        msg->size = strlen(colon);
+        strcpy(msg->data, colon);
+        printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
+        return INVITE;
+    } else{//%d:%d:%s:%s:%s
         msg->type = MESSAGE;
         char* colon = strchr(buf, ':');
         colon = strchr(colon + 1, ':');
-        char* data_begin = strchr(colon + 1, ':');
-        strncpy(msg->source, colon + 1, data_begin - colon - 1);
-        data_begin++;
-        msg->size = strlen(data_begin);
-        strcpy(msg->data, data_begin);
+        char* name_begin = strchr(colon + 1, ':');
+        strncpy(msg->source, colon + 1, name_begin - colon - 1);
+        colon = strchr(name_begin + 1, ':');
+        strncpy(msg->session, name_begin + 1, colon - name_begin - 1);
+        colon++;
+        msg->size = strlen(colon);
+        strcpy(msg->data, colon);
+        printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
         return MESSAGE;
     }
 
