@@ -622,7 +622,7 @@ EXIT_HANDLER:
             pthread_mutex_unlock(&client_list_lock);
         }else{
             pthread_mutex_lock(&client_list_lock);
-            //to cimplify implementation, in LEAVE_SESS we set the data field as the session name
+            //to simplify implementation, in LEAVE_SESS we set the data field as the session name
             leave_session(curr_client, msg.data); 
             pthread_mutex_unlock(&client_list_lock);
         }

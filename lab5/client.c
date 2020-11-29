@@ -67,7 +67,7 @@ int main(){
 
         command[strlen(command) - 1] = 0; //fgets counts '\n'/
 
-        printf("command: %s\n", command);
+        //printf("command: %s\n", command);
         if (isInvite){ //check whether client need to reply the invitation first
             if (strcmp(command, "Yes") == 0){ //directly join the session
                 strcpy(command, "/joinsession ");
@@ -84,7 +84,7 @@ int main(){
                 printf("Invalid Input.\nPlease select whether you want to join (Yes/No)\n");
                 continue;
             }
-            printf("command: %s\n", command);
+            //printf("command: %s\n", command);
         }
 
         //check different user input
