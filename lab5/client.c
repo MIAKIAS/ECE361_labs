@@ -43,6 +43,8 @@ void list_print();
 
 bool isInSession = false;
 bool isLogIn = false;
+bool isInvite = false;
+char invite_session[255] = {0};
 char curr_client_id[1024] = {0};
 struct list* session_list = NULL; 
 
@@ -61,8 +63,30 @@ int main(){
         //keep receiving commands
         char command[255] = {0};
 
+        //pthread_mutex_lock(&lock);
         fgets(command, 1024, stdin);
+        //pthread_mutex_unlock(&lock);
+
         command[strlen(command) - 1] = 0; //fgets counts '\n'
+
+        if (isInvite){ //check whether client need to reply the invitation first
+            if (strcmp(command, "Yes") == 0){ //directly join the session
+                strcpy(command, "/joinsession ");
+                strcat(command, invite_session);
+                isInvite = false;
+                memset(invite_session, 0, strlen(invite_session) + 1);
+            } else if (strcmp(command, "No") == 0){
+                printf("Refuse invitation...\n");
+                isInvite = false;
+                memset(invite_session, 0, strlen(invite_session) + 1);
+                continue;
+            } else{
+                printf("Invalid Input.\nPlease select whether you want to join (Yes/No)\n");
+                isInvite = false;
+                memset(invite_session, 0, strlen(invite_session) + 1);
+                continue;
+            }
+        }
 
         //check different user input
         if (strncmp(command, "/login", strlen("/login")) == 0){
@@ -116,7 +140,7 @@ int main(){
                 printf("You Have To Log In First, Please Try Again...\n");
                 pthread_mutex_unlock(&lock);
                 continue;
-            } else if (isInSession = false){
+            } else if (isInSession == false){
                 printf("You Have To Join a Session First, Please Try Again...\n");
                 pthread_mutex_unlock(&lock);
                 continue;
@@ -128,7 +152,7 @@ int main(){
             }
 
             pthread_mutex_lock(&lock);
-            isInSession = false;
+            //isInSession = false;
             pthread_mutex_unlock(&lock);
 
         } else if (strncmp(command, "/createsession", strlen("/createsession")) == 0){
@@ -220,7 +244,13 @@ void* keep_receiving(void* mySocket){
         char msg[255] = {0};
         if (recv(*temp, msg, 254, 0) <= 0){
             if (isLogIn == false) return NULL;
-            syserror("recv");
+            printf("Disconnected from server due to long time inactivity...\n");
+            printf("Please log in again...\n");
+            isInSession = false;
+            isLogIn = false;
+            memset(curr_client_id, 0, sizeof(curr_client_id));
+            return NULL;
+            //syserror("recv");
         }
 
         pthread_mutex_lock(&lock);
@@ -238,7 +268,7 @@ void* keep_receiving(void* mySocket){
             list_insert(msg_struct.data);
         } else if (type == JN_NAK){
             strcpy(msg_struct.source, "SERVER");
-            isInSession = false;
+            //isInSession = false;
             printf("Failed To Join Session: %s\n", msg_struct.data);
         } else if (type == NS_ACK){
             strcpy(msg_struct.source, "SERVER");
@@ -251,26 +281,10 @@ void* keep_receiving(void* mySocket){
         } else if (type == INVITE){
             printf("User: %s invites you to join the session: %s\n", msg_struct.source, msg_struct.session);
             printf("Do you want to join? (Yes/No)\n");
-            char answer[10] = {0};
-RETRY:      memset(answer, 0, strlen(answer) + 1);
-            scanf("%s", answer);
-            //fgets(answer, 1024, stdin);
-            //answer[strlen(answer) - 1] = 0;
-            //answer[strlen(answer)] = '\0';
-            printf("answer: %s\n", answer);
-            if (strcmp(answer, "Yes") == 0){ //directly join session from client side using "/joinsession"
-                char command[255] = {0};
-                strcpy(command, "/joinsession ");
-                strcat(command, msg_struct.session);
-                client_join_session(*temp, command);
-            } else if (strcmp(answer, "No") == 0){
-                printf("Refuse the invitation from user: %s\n", msg_struct.data);
-            } else{
-                printf("Invalid Input, Please Try Again...\n");
-                goto RETRY;
-            }
+            strcpy(invite_session, msg_struct.session);
+            isInvite = true; //set the flag, leave for the other thread to accpet string
         } else{
-            printf("From session [%s]:\n%s: %s\n", msg_struct.session, msg_struct.source, msg_struct.data);
+            printf("%s[%s]: %s\n", msg_struct.source, msg_struct.session, msg_struct.data);
         } 
         pthread_mutex_unlock(&lock);
     }
@@ -425,12 +439,13 @@ int client_leave_session(int mySocket, char* buf){
     char msg[255] = {0};
     if (message_to_command(buf, msg, curr_client_id) == false){
         printf("Wrong Input, Please try again...\n");
+        list_print();
         return -1;
     }
 
     //make sure the session is available
     if (list_delete(buf + strlen("/leavesession ")) == false){
-        printf("Wrong Input, Please try again...\n");
+        list_print();
         return -1;
     }
 
@@ -457,7 +472,7 @@ int client_list(int mySocket){
     return 0;
 }
 
-int client_invite(int mySocket, char* buf){// format: /invite <session> <user>
+int client_invite(int mySocket, char* buf){
 
     char msg[255] = {0};
     if (message_to_command(buf, msg, curr_client_id) == false){
@@ -476,15 +491,6 @@ int client_invite(int mySocket, char* buf){// format: /invite <session> <user>
     return 0;
 }
 
-
-// int client_exit(int mySocket){
-
-//     if (send(mySocket, "/quit", strlen("/quit") + 1, 0) <= 0){
-//         syserror("send");
-//     }
-
-//     return 0;
-// }
 
 int client_text(int mySocket, char* buf){
     char session_name[1024] = {0};
@@ -550,6 +556,9 @@ bool list_delete(char* name){
         struct session* temp = session_list->head;
         session_list->head = session_list->head->next;
         free(temp);
+        if (session_list->head == NULL){ //if no session in the list, set the flag to false
+            isInSession = false;
+        }
         return true;
     }
     //else
@@ -567,6 +576,11 @@ bool list_delete(char* name){
     struct session* target = temp->next;
     temp->next = target->next;
     free(target);
+
+    if (session_list->head == NULL){ //if no session in the list, set the flag to false
+        isInSession = false;
+    }
+
     return true;
 }
 
@@ -585,7 +599,7 @@ bool list_find(char* name){
 //print the whole list
 void list_print(){
     struct session* temp = session_list->head;
-    printf("Available sessions: \n");
+    printf("Available sessions for you: \n");
     while (temp != NULL){
         printf("%s\n", temp->session_name);
         temp = temp->next;

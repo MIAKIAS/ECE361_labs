@@ -8,7 +8,7 @@
 #define MAX_CLIENTS_NUMBER 3
 #define MAX_PASSWORD 255
 #define MAX_THREADS 999
-#define DISCONNECT_INTERVAL 60
+#define DISCONNECT_INTERVAL 120
 
 #define LOGIN 1
 #define LO_ACK 2
@@ -73,7 +73,7 @@ bool message_to_command(char* buf, char* msg, char* curr_client_id){
     } else if (strncmp(buf, "/joinsession", strlen("/joinsession")) == 0){
         sprintf(msg, "%d:%d:%s:%s", JOIN, strlen(buf) - strlen("/joinsession "), curr_client_id, buf + strlen("/joinsession "));
     } else if (strncmp(buf, "/leavesession", strlen("/leavesession")) == 0){
-        if (strlen(buf) - strlen("/leavesession ") <= 0){
+        if ((int)(strlen(buf) - strlen("/leavesession ")) <= 0){ //have to use (int), have bug otherwise
             printf("Please indicate which session you want to leave...\n");
             return false;
         }
@@ -105,7 +105,7 @@ bool message_to_command(char* buf, char* msg, char* curr_client_id){
     } else {
         sprintf(msg, "%d:%d:%s:%s", MESSAGE, strlen(buf) - 1, curr_client_id, buf);
     }
-    printf("Serialization: %s\n", msg);
+    //printf("Serialization: %s\n", msg);
     return true;
 }
 
@@ -243,7 +243,7 @@ int command_to_message(char* buf, struct message *msg){
         colon++;        
         strcpy(msg->session, colon);
         msg->size = strlen(msg->data) + strlen(msg->session);
-        printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
+        //printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
         return INVITE;
     } else{
         msg->type = MESSAGE;
@@ -256,7 +256,7 @@ int command_to_message(char* buf, struct message *msg){
         colon++;
         msg->size = strlen(colon);
         strcpy(msg->data, colon);
-        printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
+        //printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
         return MESSAGE;
     }
 

@@ -455,7 +455,7 @@ int main(int argc, char** argv){
         }
 
         //make the socket non-blocking
-        fcntl(new_socket, F_SETFL, O_NONBLOCK);
+        //fcntl(new_socket, F_SETFL, O_NONBLOCK);
 
         int *new_socket_ptr = malloc(sizeof(int));
         *new_socket_ptr = new_socket;
@@ -479,31 +479,55 @@ void *thread_request(int *client_socket){
     int type = -1;
 
     struct client *curr_client = NULL;
-    clock_t start, end;
+
+    time_t start, end;
+
     struct timeval timer;
-    timer.tv_sec = 30;
+    timer.tv_sec = DISCONNECT_INTERVAL;
     timer.tv_usec = 0;
 
+    if (setsockopt(*client_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timer, sizeof(timer)) < 0)
+        syserror("set timer");
 
 MAIN_LOOP:
     memset(recv_buf, 0, sizeof(recv_buf));
     
-    while(recv(*client_socket, recv_buf, 255, 0) <= 0){     
+    time(&start);
+    //start = gmtime(&time_timer);
+    //start = clock();
+    //printf("here1\n");
+
+    if(recv(*client_socket, recv_buf, 255, 0) <= 0){     
         //printf("492\n");
         if(!logged_in){
-            continue;
+            goto MAIN_LOOP;
         }   
         // syserror("recv");
         // return NULL;
-        end = clock();
-
+        time(&end);
+        //end = gmtime(&time_timer);
+        //end = clock();
+        //printf("here2\n");
         //check time difference
-        double time_interval = ((double)(end - start)) / CLOCKS_PER_SEC;
-        //printf("time: %lf", time_interval);
-        if(time_interval >= DISCONNECT_INTERVAL){
-            printf("Disconnect due to long time inacticity\n");
+        //double time_interval = ((double)(end - start)) / CLOCKS_PER_SEC;
+        // double time_interval = (end->tm_hour * 3600 + end->tm_min * 60 + end->tm_sec)
+        //                      - (start->tm_hour * 3600 + end->tm_min * 60 + end->tm_sec);
+        double time_interval = end - start;
+        if (time_interval >= DISCONNECT_INTERVAL){
+            printf("Disconnect %s due to long time inactivity (%d sec).\n", curr_client->ID, time_interval);
+            goto EXIT_HANDLER;
+        } else{
+            printf("Lost connectiton from client %s.\n", curr_client->ID);
             goto EXIT_HANDLER;
         }
+        
+
+        // if(time_interval >= DISCONNECT_INTERVAL){
+        //     printf("Disconnect due to long time inacticity\n");
+        //     goto EXIT_HANDLER;
+        // } else{
+        //     goto MAIN_LOOP;
+        // }
     }
 
     
@@ -577,7 +601,7 @@ MAIN_LOOP:
                 printf("Client %s logged in.\n", clients[i].ID);
 
                 logged_in = true;
-                start = clock();
+                //start = clock();
                 // if(setsockopt(*client_socket, SOL_SOCKET, SO_RCVTIMEO, (void*)&timer, sizeof(timer)) < 0){
                 //     syserror("setsocketopt");
                 // }
@@ -629,7 +653,7 @@ EXIT_HANDLER:
     }
 
     else if(type == JOIN){
-        start = clock();
+        //start = clock();
 
         join_session(curr_client, curr_client->client_socket, msg.data, msg.size, msg.type);
               
@@ -637,7 +661,7 @@ EXIT_HANDLER:
     }
 
     else if(type == LEAVE_SESS){
-        start = clock();
+        //start = clock();
 
         if(!curr_client->in_session){
             char ack[255] = {0};
@@ -654,7 +678,7 @@ EXIT_HANDLER:
             pthread_mutex_unlock(&client_list_lock);
         }else{
             pthread_mutex_lock(&client_list_lock);
-            leave_session(curr_client, msg.session);
+            leave_session(curr_client, msg.data); //to cimplify implementation, in LEAVE_SESS we set the data field as the session name
             pthread_mutex_unlock(&client_list_lock);
         }
 
@@ -662,7 +686,7 @@ EXIT_HANDLER:
     }
 
     else if(type == NEW_SESS){
-        start = clock();
+        //start = clock();
 
         create_session(curr_client, msg.data, msg.size);
 
@@ -674,7 +698,7 @@ EXIT_HANDLER:
     }
 
     else if(type == QUERY){
-        start = clock();
+        //start = clock();
 
         char buf[1024] = {0};
         pthread_mutex_lock(&client_list_lock);
@@ -688,7 +712,7 @@ EXIT_HANDLER:
     }
 
     else if(type == MESSAGE){
-        start = clock();
+        //start = clock();
 
         multicast_message(curr_client, recv_buf, msg.session);
         // if(curr_client->in_session){
@@ -727,7 +751,7 @@ EXIT_HANDLER:
     }
     
     else if(type == INVITE){
-        start = clock();
+        //start = clock();
 
         int count = 0;
         int invite_index1 = 0;
@@ -1128,7 +1152,7 @@ void invite(struct client *curr_client, char *client_to_invite, char *session_id
 
     pthread_mutex_unlock(&session_queue_lock);
 
-    printf("recv_buf: %s", recv_buf);
+    printf("recv_buf: %s\n", recv_buf);
     if(send(clients[index].client_socket, recv_buf, strlen(recv_buf), 0) < 0){
         syserror("send");
     }
