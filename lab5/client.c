@@ -63,13 +63,11 @@ int main(){
         //keep receiving commands
         char command[255] = {0};
 
-        //pthread_mutex_lock(&lock);
         fgets(command, 1024, stdin);
-        fflush(stdin);
-        //pthread_mutex_unlock(&lock);
 
-        command[strlen(command) - 1] = 0; //fgets counts '\n'
+        command[strlen(command) - 1] = 0; //fgets counts '\n'/
 
+        printf("command: %s\n", command);
         if (isInvite){ //check whether client need to reply the invitation first
             if (strcmp(command, "Yes") == 0){ //directly join the session
                 strcpy(command, "/joinsession ");
@@ -82,11 +80,11 @@ int main(){
                 memset(invite_session, 0, strlen(invite_session) + 1);
                 continue;
             } else{
+                //re-capture the input
                 printf("Invalid Input.\nPlease select whether you want to join (Yes/No)\n");
-                isInvite = false;
-                memset(invite_session, 0, strlen(invite_session) + 1);
                 continue;
             }
+            printf("command: %s\n", command);
         }
 
         //check different user input
@@ -280,8 +278,8 @@ void* keep_receiving(void* mySocket){
             strcpy(msg_struct.source, "SERVER");
             printf("%s\n", msg_struct.data);
         } else if (type == INVITE){
-            //printf("User: %s invites you to join the session: %s\n", msg_struct.source, msg_struct.session);
-            printf("Do you want to join session: %s , invited by: %s ? (Yes/No)\n", msg_struct.session, msg_struct.source);
+            printf("User: %s invites you to join the session: %s\n", msg_struct.source, msg_struct.session);
+            printf("Do you want to join? (Yes/No)\n", msg_struct.session, msg_struct.source);
             strcpy(invite_session, msg_struct.session);
             isInvite = true; //set the flag, leave for the other thread to accpet string
         } else{
@@ -600,7 +598,7 @@ bool list_find(char* name){
 //print the whole list
 void list_print(){
     struct session* temp = session_list->head;
-    printf("Available sessions for you: \n");
+    printf("\nAvailable sessions for you: \n");
     while (temp != NULL){
         printf("%s\n", temp->session_name);
         temp = temp->next;
