@@ -249,12 +249,15 @@ void* keep_receiving(void* mySocket){
             strcpy(msg_struct.source, "SERVER");
             printf("%s\n", msg_struct.data);
         } else if (type == INVITE){
-            printf("User: %s invites you to join the session: %s\n", msg_struct.data, msg_struct.session);
+            printf("User: %s invites you to join the session: %s\n", msg_struct.source, msg_struct.session);
             printf("Do you want to join? (Yes/No)\n");
             char answer[10] = {0};
 RETRY:      memset(answer, 0, strlen(answer) + 1);
-            fgets(answer, 1024, stdin);
-            answer[strlen(answer) - 1] = 0;
+            scanf("%s", answer);
+            //fgets(answer, 1024, stdin);
+            //answer[strlen(answer) - 1] = 0;
+            //answer[strlen(answer)] = '\0';
+            printf("answer: %s\n", answer);
             if (strcmp(answer, "Yes") == 0){ //directly join session from client side using "/joinsession"
                 char command[255] = {0};
                 strcpy(command, "/joinsession ");

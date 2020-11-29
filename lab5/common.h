@@ -8,7 +8,7 @@
 #define MAX_CLIENTS_NUMBER 3
 #define MAX_PASSWORD 255
 #define MAX_THREADS 999
-#define DISCONNECT_INTERVAL 30000
+#define DISCONNECT_INTERVAL 60
 
 #define LOGIN 1
 #define LO_ACK 2
@@ -105,7 +105,7 @@ bool message_to_command(char* buf, char* msg, char* curr_client_id){
     } else {
         sprintf(msg, "%d:%d:%s:%s", MESSAGE, strlen(buf) - 1, curr_client_id, buf);
     }
-    printf("Seriablization: %s\n", msg);
+    printf("Serialization: %s\n", msg);
     return true;
 }
 
@@ -239,10 +239,10 @@ int command_to_message(char* buf, struct message *msg){
         char* name_begin = strchr(colon + 1, ':');
         strncpy(msg->source, colon + 1, name_begin - colon - 1);
         colon = strchr(name_begin + 1, ':');
-        strncpy(msg->session, name_begin + 1, colon - name_begin - 1);
-        colon++;
-        msg->size = strlen(colon);
-        strcpy(msg->data, colon);
+        strncpy(msg->data, name_begin + 1, colon - name_begin - 1);
+        colon++;        
+        strcpy(msg->session, colon);
+        msg->size = strlen(msg->data) + strlen(msg->session);
         printf("type: %d\nsize: %d\nsource: %s\ndata: %s\nsession: %s\n", msg->type, msg->size, msg->source, msg->data, msg->session);
         return INVITE;
     } else{
@@ -261,8 +261,5 @@ int command_to_message(char* buf, struct message *msg){
     }
 
 }
-
-
-
 
 

@@ -15,7 +15,8 @@
 #include <stdbool.h>
 #include "common.h"
 #include "client.h"
-#include <time.h>
+#include <sys/time.h>
+#include <fcntl.h>
 
 #define NUM_CONNECTIONS 8
 
@@ -58,6 +59,20 @@ struct client clients[MAX_CLIENTS_NUMBER] = {
 
 int client_count = 0;
 int session_count = 0;
+
+//debug purpose
+void print_session(struct session_info *session){
+    if(session->num_clients <= 0){
+        return;
+    }
+    printf("session: %s , users: ", session->session_id);
+    struct client_index *temp = session->list.head;
+    while(temp != NULL){
+        printf("%s | ", clients[temp->index].ID);
+        temp = temp->next;
+    }
+    printf("\n");
+}
 
 void enque_session_queue(struct session_info *session){
     if(!session_q.head){
@@ -177,6 +192,7 @@ void add_session_to_client(struct client *curr_client, char *session_id){
 }
 
 void delete_session_from_client(struct client *curr_client, char *session_id){
+    //printf("delete_session_from_client...\n");
     struct list_entry *temp_delete;
     if(strcmp(curr_client->s_list.head->session_id, session_id) == 0){
         temp_delete = curr_client->s_list.head;
@@ -188,6 +204,7 @@ void delete_session_from_client(struct client *curr_client, char *session_id){
         if(curr_client->s_list.head == NULL){
             curr_client->in_session = false;
         }
+        return;
     }
 
     struct list_entry *temp_entry = curr_client->s_list.head;
@@ -273,7 +290,9 @@ void delete_client_in_all_sessions(char *curr_client_id){
     struct client_index_list *list = &(temp_session->list);
 
     while(temp_session != NULL){
+        bool found_client = false;
         if(list->head->index == index){
+            found_client = true;
             struct client_index *temp_delete = list->head;
             list->head = list->head->next;
             free(temp_delete);
@@ -282,6 +301,7 @@ void delete_client_in_all_sessions(char *curr_client_id){
             struct client_index *temp = list->head;
             while(temp->next != NULL){
                 if(temp->next->index == index){
+                    found_client = true;
                     struct client_index *temp_delete = temp->next;
                     temp->next = temp->next->next;
                     free(temp_delete);
@@ -290,7 +310,10 @@ void delete_client_in_all_sessions(char *curr_client_id){
             }
         }
 
-        temp_session->num_clients --;
+        if(found_client){
+            temp_session->num_clients --;
+        }
+  
         struct session_info *next_session = temp_session->next;
 
         if(temp_session->num_clients <= 0){
@@ -342,6 +365,9 @@ void list_sessions(char* buf, int client_socket){
     
     //append all sessions
     while(curr_session != NULL){
+        //debug print
+        //print_session(curr_session);
+
         strcat(buf, curr_session->session_id);
         strcat(buf, "\n");
 
@@ -363,7 +389,7 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
 void leave_session(struct client *curr_client, char *session_id);
 void create_session(struct client *curr_client, char *session_id, int data_size);
 void multicast_message(struct client *curr_client, char *message_data, char *session_id);
-void invite(struct client *curr_client, char *client_to_invite, char *session_id);
+void invite(struct client *curr_client, char *client_to_invite, char *session_id, char *recv_buf);
 
 void usage(){
 	fprintf(stderr, "Incorrect inputs\n");
@@ -428,6 +454,9 @@ int main(int argc, char** argv){
             syserror("accept");
         }
 
+        //make the socket non-blocking
+        fcntl(new_socket, F_SETFL, O_NONBLOCK);
+
         int *new_socket_ptr = malloc(sizeof(int));
         *new_socket_ptr = new_socket;
 
@@ -443,7 +472,7 @@ int main(int argc, char** argv){
 
 
 void *thread_request(int *client_socket){
-    char buf[255] = {0};
+    char recv_buf[255] = {0};
     struct message msg;
     bool logged_in = false;
 
@@ -451,29 +480,51 @@ void *thread_request(int *client_socket){
 
     struct client *curr_client = NULL;
     clock_t start, end;
+    struct timeval timer;
+    timer.tv_sec = 30;
+    timer.tv_usec = 0;
+
 
 MAIN_LOOP:
-    memset(buf, 0, sizeof(buf));
-    if(recv(*client_socket, buf, 255, 0) < 0){
-        if(logged_in){
-            end = clock();
+    memset(recv_buf, 0, sizeof(recv_buf));
+    
+    while(recv(*client_socket, recv_buf, 255, 0) <= 0){     
+        //printf("492\n");
+        if(!logged_in){
+            continue;
+        }   
+        // syserror("recv");
+        // return NULL;
+        end = clock();
 
-            //check time difference
-            double time_interval = ((double)(end - start)) / CLOCKS_PER_SEC;
-            if(time_interval >= DISCONNECT_INTERVAL){
-                goto EXIT_HANDLER;
-            }
-        }
-        syserror("recv");
-        return NULL;
-    }else{
-        if(logged_in){
-            start = clock();
+        //check time difference
+        double time_interval = ((double)(end - start)) / CLOCKS_PER_SEC;
+        //printf("time: %lf", time_interval);
+        if(time_interval >= DISCONNECT_INTERVAL){
+            printf("Disconnect due to long time inacticity\n");
+            goto EXIT_HANDLER;
         }
     }
 
     
-    type = command_to_message(buf, &msg);
+    // //restart timer
+    // if(logged_in){
+    //     start = clock();
+    // }
+    
+
+    // if(logged_in){
+    //     end = clock();
+
+    //     //check time difference
+    //     double time_interval = ((double)(end - start)) / CLOCKS_PER_SEC;
+    //     printf("time: %lf", time_interval);
+    //     if(time_interval >= DISCONNECT_INTERVAL){
+    //         printf("Disconnect due to long time inacticity\n");
+    //         goto EXIT_HANDLER;
+    //     }
+    // }
+    type = command_to_message(recv_buf, &msg);
     // if (curr_client != NULL){
     //     strcpy(msg.source, curr_client->ID);   
     //     //printf("Source: %s\n", msg.source);
@@ -526,6 +577,11 @@ MAIN_LOOP:
                 printf("Client %s logged in.\n", clients[i].ID);
 
                 logged_in = true;
+                start = clock();
+                // if(setsockopt(*client_socket, SOL_SOCKET, SO_RCVTIMEO, (void*)&timer, sizeof(timer)) < 0){
+                //     syserror("setsocketopt");
+                // }
+                
                 
                 free(curr_client_id);
                 free(curr_password);
@@ -544,7 +600,7 @@ MAIN_LOOP:
 
             free(curr_client_id);
             free(curr_password);      
-            goto OUT_LOOP;    
+            goto OUT_LOOP;  
         }
         goto MAIN_LOOP;
     }
@@ -569,16 +625,20 @@ EXIT_HANDLER:
         pthread_mutex_unlock(&client_list_lock);
         printf("Client %s logged out.\n", curr_client->ID);
         
-        
+        //goto MAIN_LOOP;
     }
 
     else if(type == JOIN){
+        start = clock();
+
         join_session(curr_client, curr_client->client_socket, msg.data, msg.size, msg.type);
               
         goto MAIN_LOOP;
     }
 
     else if(type == LEAVE_SESS){
+        start = clock();
+
         if(!curr_client->in_session){
             char ack[255] = {0};
             message_to_command("Not in any session", ack, "Error");
@@ -602,6 +662,8 @@ EXIT_HANDLER:
     }
 
     else if(type == NEW_SESS){
+        start = clock();
+
         create_session(curr_client, msg.data, msg.size);
 
         if(msg.size > 0){
@@ -612,6 +674,8 @@ EXIT_HANDLER:
     }
 
     else if(type == QUERY){
+        start = clock();
+
         char buf[1024] = {0};
         pthread_mutex_lock(&client_list_lock);
         list_users(buf, curr_client->client_socket);
@@ -624,64 +688,118 @@ EXIT_HANDLER:
     }
 
     else if(type == MESSAGE){
-        if(curr_client->in_session){
-            if(curr_client->s_list.head->next == NULL){
-                //直接multicast buf里的信息， 然后struct里面专门存了个session的名字，直接发给那个session就好
-                multicast_message(curr_client, msg.data, curr_client->s_list.head->session_id);
-            }else{
-                char *session_id;
-                char *message_data;
+        start = clock();
+
+        multicast_message(curr_client, recv_buf, msg.session);
+        // if(curr_client->in_session){
+        //     if(curr_client->s_list.head->next == NULL){
+        //         multicast_message(curr_client, msg.data, curr_client->s_list.head->session_id);
+        //     }else{
+        //         multicast_message(curr_client, msg.data, msg.session);
+                // char *session_id;
+                // char *message_data;
       
-                char *comma = strchr(msg.data, ',');
+                // char *comma = strchr(msg.data, ',');
 
-                if(comma == NULL){
-                    printf("Should specify which session to send message to\n");
-                }else{
-                    session_id = malloc(sizeof(char) * (comma - (char*)msg.data + 1));
-                    memset(session_id, 0, sizeof(char) * (comma - (char*)msg.data + 1));
-                    strncpy(session_id, msg.data, comma - (char*)msg.data);
+                // if(comma == NULL){
+                //     printf("Should specify which session to send message to\n");
+                // }else{
+                //     session_id = malloc(sizeof(char) * (comma - (char*)msg.data + 1));
+                //     memset(session_id, 0, sizeof(char) * (comma - (char*)msg.data + 1));
+                //     strncpy(session_id, msg.data, comma - (char*)msg.data);
 
-                    int len = comma - (char*)msg.data;
-                    message_data = malloc(sizeof(char) * (strlen(msg.data) - len));
-                    memset(message_data, 0, sizeof(char) * (strlen(msg.data) - len));
-                    strncpy(message_data, comma + 1, strlen(comma + 1));
+                //     int len = comma - (char*)msg.data;
+                //     message_data = malloc(sizeof(char) * (strlen(msg.data) - len));
+                //     memset(message_data, 0, sizeof(char) * (strlen(msg.data) - len));
+                //     strncpy(message_data, comma + 1, strlen(comma + 1));
 
-                    multicast_message(curr_client, message_data, session_id);
-                    free(session_id);
-                    free(message_data);
-                }   
-            }
+                //     multicast_message(curr_client, message_data, session_id);
+                //     free(session_id);
+                //     free(message_data);
+                // }   
+            
             //multicast_message(curr_client, msg.data);
-        }else{
-            printf("Current client is not in any session\n");
-        }
+        // }else{
+        //     printf("Current client is not in any session\n");
+        // }
         
         goto MAIN_LOOP;
-    }else if(type == INVITE){
-        char *client_id;
-        char *session_id;
-      
-        char *comma = strchr(msg.data, ',');
-        if(comma == NULL){
-            printf("Should specify which client to invite\n");
-        }else{
-            client_id = malloc(sizeof(char) * (comma - (char*)msg.data + 1));
-            memset(client_id, 0, sizeof(char) * (comma - (char*)msg.data + 1));
-            strncpy(client_id, msg.data, comma - (char*)msg.data);
+    }
+    
+    else if(type == INVITE){
+        start = clock();
 
-            int len = comma - (char*)msg.data;
-            session_id = malloc(sizeof(char) * (strlen(msg.data) - len));
-            memset(session_id, 0, sizeof(char) * (strlen(msg.data) - len));
-            strncpy(session_id, comma + 1, strlen(comma + 1));
-
-            invite(curr_client, client_id, session_id);
-            free(client_id);
-            free(session_id);
+        int count = 0;
+        int invite_index1 = 0;
+        int invite_index2 = 0;
+        bool flag1 = true;
+    
+        for(int i = 0; i < strlen(recv_buf); ++i){
+            if(recv_buf[i] == ':'){
+                count ++;
+            }
+            if(count == 3 && flag1){
+                invite_index1 = i;
+                flag1 = false;
+            }else if(count == 4){
+                invite_index2 = i;
+                break;
+            }
         }
+
+        int len = invite_index2 - invite_index1 - 1;
+        char *client_to_invite = malloc(sizeof(char) * (len + 1));
+        strncpy(client_to_invite, recv_buf + invite_index1 + 1, len);
+        client_to_invite[len] = '\0';
+        printf("client to invite: %s\n", client_to_invite);
+
+        invite(curr_client, client_to_invite, msg.session, recv_buf);
+
+        // //check if the client to invite exists and is active
+        // bool client_active = false;
+        // int index = -1;
+        // pthread_mutex_lock(&client_list_lock);
+        // for(int i = 0; i < MAX_CLIENTS_NUMBER; ++i){
+        //     if(strcmp(client_to_invite, clients[i].ID) == 0 && clients[i].active){
+        //         client_active = true;
+        //         index = i;
+        //         break;
+        //     }
+        // }
+        // pthread_mutex_unlock(&client_list_lock);
+
+        // if(!client_active){
+        //     printf("Fail to invite: The client to invite does not exist or is not active\n");
+        // }else{
+        //     if(send(clients[index].client_socket, recv_buf, strlen(recv_buf), 0) < 0){
+        //         syserror("send");
+        //     }
+        // }
+
+        // char *client_id;
+        // char *session_id;
+      
+        // char *comma = strchr(msg.data, ',');
+        // if(comma == NULL){
+        //     printf("Should specify which client to invite\n");
+        // }else{
+        //     client_id = malloc(sizeof(char) * (comma - (char*)msg.data + 1));
+        //     memset(client_id, 0, sizeof(char) * (comma - (char*)msg.data + 1));
+        //     strncpy(client_id, msg.data, comma - (char*)msg.data);
+
+        //     int len = comma - (char*)msg.data;
+        //     session_id = malloc(sizeof(char) * (strlen(msg.data) - len));
+        //     memset(session_id, 0, sizeof(char) * (strlen(msg.data) - len));
+        //     strncpy(session_id, comma + 1, strlen(comma + 1));
+
+        //     invite(curr_client, client_id, session_id);
+        //     free(client_id);
+        //     free(session_id);
+        // }
 
         goto MAIN_LOOP;
     }
-OUT_LOOP: 
+OUT_LOOP:
     close(*client_socket);
     free(client_socket);
     return NULL;
@@ -706,6 +824,27 @@ void join_session(struct client *curr_client, int client_socket, char *session_i
         
         return;
     }
+
+    //check if the current client is already in this session
+    if(curr_client->in_session){
+        struct list_entry *temp_entry = curr_client->s_list.head;
+        while(temp_entry != NULL){
+            if(strcmp(temp_entry->session_id, session_id) == 0){
+                strcpy(buf, "JN_NAK: ");
+                strcat(buf, "Current client already in this session");
+
+                char ack[255] = {0};
+                message_to_command(buf, ack, "N/A");
+                if(send(curr_client->client_socket, ack, strlen(ack) + 1, 0) < 0){
+                    syserror("send");
+                }
+
+                return;
+            }
+            temp_entry = temp_entry->next;
+        }
+    }
+    
 
     // if(curr_client->in_session){
     //     if (type == JOIN){
@@ -915,12 +1054,12 @@ void multicast_message(struct client *curr_client, char *message_data, char *ses
 
     struct client_index *temp = session_to_send->list.head;
 
-    char chat[1024] = {0};
-    message_to_command(message_data, chat, curr_client->ID);
+    // char chat[1024] = {0};
+    // message_to_command(message_data, chat, curr_client->ID);
     while(temp != NULL){
         //printf("%d\n", temp->index);
         
-        if(send(clients[temp->index].client_socket, chat, strlen(chat), 0) < 0){
+        if(send(clients[temp->index].client_socket, message_data, strlen(message_data), 0) < 0){
             syserror("send");
         }
         temp = temp->next;
@@ -928,7 +1067,7 @@ void multicast_message(struct client *curr_client, char *message_data, char *ses
     pthread_mutex_unlock(&session_queue_lock);
 }
 
-void invite(struct client *curr_client, char *client_to_invite, char *session_id){
+void invite(struct client *curr_client, char *client_to_invite, char *session_id, char *recv_buf){
     //check client_to_invite exists and has logged in
     bool client_active = false;
     int index = -1;
@@ -984,33 +1123,37 @@ void invite(struct client *curr_client, char *client_to_invite, char *session_id
             pthread_mutex_unlock(&session_queue_lock);
             return;
         }
+        temp_index = temp_index->next;
     }
+
     pthread_mutex_unlock(&session_queue_lock);
 
-    //send invitation to client_to_invite, wait for reply, if yes, add to session
-    //pthread_mutex_lock(&client_list_lock);
-    char send_buf[255] = "Yes / No ? do you want to join ";
-    strcat(send_buf, session_id);
-    if(send(clients[index].client_socket, send_buf, strlen(send_buf), 0) < 0){
+    printf("recv_buf: %s", recv_buf);
+    if(send(clients[index].client_socket, recv_buf, strlen(recv_buf), 0) < 0){
         syserror("send");
     }
+    //send invitation to client_to_invite
+    //pthread_mutex_lock(&client_list_lock);
+    // char send_buf[255] = "Yes / No ? do you want to join ";
+    // strcat(send_buf, session_id);
     
-    char recv_buf[255];
-    while(recv(clients[index].client_socket, recv_buf, strlen(recv_buf), 0) < 0){
-        ;
-    }
+    
+    // char recv_buf[255];
+    // while(recv(clients[index].client_socket, recv_buf, strlen(recv_buf), 0) < 0){
+    //     ;
+    // }
 
-    if(strcmp(recv_buf, "Yes") == 0){
-        //add_session_to_client
-        add_session_to_client(&clients[index], session_id);
+    // if(strcmp(recv_buf, "Yes") == 0){
+    //     //add_session_to_client
+    //     add_session_to_client(&clients[index], session_id);
 
-        //add_client_to_session_list
-        pthread_mutex_lock(&session_queue_lock);
+    //     //add_client_to_session_list
+    //     pthread_mutex_lock(&session_queue_lock);
 
-        add_client_to_session(client_to_invite, &(session_to_send->list));
-        session_to_send->num_clients ++;
+    //     add_client_to_session(client_to_invite, &(session_to_send->list));
+    //     session_to_send->num_clients ++;
 
-        pthread_mutex_unlock(&session_queue_lock);
-    }
+    //     pthread_mutex_unlock(&session_queue_lock);
+    // }
 
 }
