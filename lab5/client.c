@@ -65,6 +65,7 @@ int main(){
 
         //pthread_mutex_lock(&lock);
         fgets(command, 1024, stdin);
+        fflush(stdin);
         //pthread_mutex_unlock(&lock);
 
         command[strlen(command) - 1] = 0; //fgets counts '\n'
@@ -279,8 +280,8 @@ void* keep_receiving(void* mySocket){
             strcpy(msg_struct.source, "SERVER");
             printf("%s\n", msg_struct.data);
         } else if (type == INVITE){
-            printf("User: %s invites you to join the session: %s\n", msg_struct.source, msg_struct.session);
-            printf("Do you want to join? (Yes/No)\n");
+            //printf("User: %s invites you to join the session: %s\n", msg_struct.source, msg_struct.session);
+            printf("Do you want to join session: %s , invited by: %s ? (Yes/No)\n", msg_struct.session, msg_struct.source);
             strcpy(invite_session, msg_struct.session);
             isInvite = true; //set the flag, leave for the other thread to accpet string
         } else{
